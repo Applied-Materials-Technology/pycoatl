@@ -7,3 +7,4 @@ pyvista
 matplotlib
 numba
 pytest
+ansys-mapdl-reader
