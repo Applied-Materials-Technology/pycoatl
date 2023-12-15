@@ -4,6 +4,7 @@ from pycoatl.utils.matchidutils import read_load_file
 import pandas as pd
 import os
 from pycoatl.spatialdata.spatialdata import SpatialData
+import platform
 
 
 def return_mesh_matchid(matchid_dataframe):
@@ -107,13 +108,16 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
 
     # Should maybe check indices match, but for now leaving it.
     
-    initial = pd.read_csv(folder_path + '\\' + files[0])
+    path_sep = '/'
+    if platform.system == 'Windows':
+        path_sep = '\\'
+    initial = pd.read_csv(folder_path + path_sep + files[0])
     initial_mesh = return_mesh_matchid(initial)
 
     #Assuming that the files are in order.
     data_sets = []
     for file in files:
-        filename = folder_path + '\\' + file
+        filename = folder_path + path_sep + file
         current_data = pd.read_csv(filename)
         #Create empty mesh to overwrite
         current_grid = pv.UnstructuredGrid()

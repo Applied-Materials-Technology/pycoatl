@@ -1,6 +1,6 @@
 #
-#
-#
+# Currently no checking if load steps == number of datasets etc.
+# Consider whether to include methods from spatialdatawrapper into class methods.
 
 class SpatialData():
     """Spatial data from DIC and FE using PyVista
