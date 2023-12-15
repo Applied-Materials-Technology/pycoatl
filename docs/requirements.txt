@@ -1,0 +1,9 @@
+myst-nb
+sphinx-autoapi
+sphinx-rtd-theme
+numpy
+pandas
+pyvista
+matplotlib
+numba
+pytest
