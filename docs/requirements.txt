@@ -8,3 +8,4 @@ matplotlib
 numba
 pytest
 ansys-mapdl-reader
+pytest
