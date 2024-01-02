@@ -5,7 +5,7 @@
 import numpy as np
 import pandas as pd
 import os 
-from materialmodeloptimizer.fullfielddata.matchidutils import read_load_file
+from pycoatl.utils.matchidutils import read_load_file
 
 def read_davis(filename):
     """
