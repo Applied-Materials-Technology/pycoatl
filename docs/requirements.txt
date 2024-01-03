@@ -10,3 +10,4 @@ pytest
 ansys-mapdl-reader
 pytest
 meshio
+scipy
