@@ -11,3 +11,7 @@ ansys-mapdl-reader
 pytest
 meshio
 scipy
+trame
+trame-vtk
+trame-vuetify
+ipywidgets
