@@ -19,12 +19,13 @@ def test_new_import():
     efile = 'data/moose_output.e'
     sd = moose_to_spatialdata(efile)
     pv.global_theme.colorbar_orientation = 'vertical'
-    sd.data_sets[-1].plot(scalars='mechanical_strain_yy',cpos='xy',)
+    sd.data_sets[-1].plot(scalars='mechanical_strain_yy',cpos='xy',theme=get_standard_theme())
     # Should plot the data.
 
 def test_differentiation():
     efile = 'data/moose_output.e'
     sd = moose_to_spatialdata(efile)
-    sd.window_differentation()
-    assert 'exx' in sd.data_sets[-1].array_names
-    sd.data_sets[-1].plot(scalars='eyy',theme=get_standard_theme())
+    gd = sd.interpolate_to_grid()
+    gd.window_differentation()
+    assert 'exx' in gd.data_sets[-1].array_names
+    gd.data_sets[-1].plot(scalars='eyy',theme=get_standard_theme())

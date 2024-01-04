@@ -42,15 +42,15 @@ def return_mesh_davis(davis_dataframe):
         try: 
             connectivity.append(np.where((xc==cand_x+spacing)*(yc == cand_y))[0][0])
         except:
-            print('No connectivity at point 1.')
+            pass#print('No connectivity at point 1.')
         try:
             connectivity.append(np.where((xc==cand_x+spacing)*(yc == cand_y+spacing))[0][0])
         except:
-            print('No connectivity at point 2.')
+            pass#print('No connectivity at point 2.')
         try:
             connectivity.append(np.where((xc==cand_x)*(yc == cand_y+spacing))[0][0])
         except:
-            print('No connectivity at point 3.')
+            pass#print('No connectivity at point 3.')
         
         if len(connectivity) <3:
             continue
@@ -91,8 +91,8 @@ def davis_to_spatialdata(folder_path,load_filename,fields=['X-displacement [mm]'
     """
     #Something here
     index, load = read_load_file_d(load_filename)
-    load = load[1:]
-    index = index[1:]
+    load = load
+    index = index
     # Need some other way to get times, but in the absence of that this will do for now.
     time = index-1
     
