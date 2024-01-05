@@ -29,6 +29,10 @@ class SpatialData():
         self._load = load
         self._metadata = metadata # dict of whatever metadata we want.
 
+        # Basic checks & warns
+        if len(self.data_sets) != len(self._time):
+            print('Warning: Number of load steps does not match number of data sets.')
+
 
     def __str__(self):
         """Make a nicely formatted string of metadata for use.
@@ -41,6 +45,26 @@ class SpatialData():
             outstring += '{} is {}\n'.format(key,value)
         
         return outstring
+    
+    def get_times(self):
+        return self._time
+    
+    def add_metadata_item(self,key,value):
+        """Adding individual metadata item.
+
+        Args:
+            key (str): New key for the metadata dictionary
+            value (any): Value for the metadata dictionary
+        """
+        self._metadata[key] = value
+    
+    def add_metadata_bulk(self,metadata_dict: dict):
+        """Adding individual metadata item.
+
+        Args:
+            metadata_dict (dict): New dictionary with additional metadata
+        """
+        self._metadata.update(metadata_dict)
     
 
 
