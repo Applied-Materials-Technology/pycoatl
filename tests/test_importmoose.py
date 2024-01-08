@@ -29,3 +29,6 @@ def test_differentiation():
     gd.window_differentation()
     assert 'exx' in gd.data_sets[-1].array_names
     gd.data_sets[-1].plot(scalars='eyy',theme=get_standard_theme())
+
+def test_import2d():
+    pass
