@@ -12,14 +12,14 @@ class SpatialData():
     Must be able to store metadata.
     """
 
-    def __init__(self,data_sets,index,time,load,metadata):
+    def __init__(self,data_sets,metadata,index=None,time=None,load=None):
         """
 
         Args:
             data_sets (list of pyvista mesh): List of the pyvista data meshes.
             index (int array): Indices of the data sets.
             time (float array): Times 
-            load (float array): _description_
+            load (float array): _description_ 
             metadata (dict): _description_
         """
         self.data_sets = data_sets # List of pyvista meshes.

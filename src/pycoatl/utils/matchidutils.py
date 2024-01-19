@@ -280,11 +280,12 @@ def read_load_file(filename):
                      skiprows=1, 
                      names=['index','P'],
                      usecols = [0,1]) 
-    data.head()
+
     try:
         index = data['index'].to_numpy().astype(np.int32)
         load = data['P'].to_numpy().astype(np.float32)*1000
-        
+        time = index-1
+
     except ValueError:
         data =  pd.read_csv(filename, 
                      delimiter=r";", 
@@ -298,8 +299,30 @@ def read_load_file(filename):
             index[i] = int(s.split('.')[0].split('_')[-2])
             
         load = data['P'].to_numpy().astype(np.float32)*1000
+        time = index-1
                      
-    return index, load        
+    return index, time, load   
+
+def read_matchid_csv(filename):
+    """Read the Image.csv file produced by the matchID grabber.
+
+    Args:
+        filename (str): Path to image.csv file
+
+    Returns:
+        int array: image indices,
+        float array: image times
+        float array: load values
+    """
+    data = pd.read_csv(filename,delimiter=';')
+    time = data['TimeStamp'].to_numpy()
+    time = time-time[0] # rebase so image 0 is at t =0
+    load = data[' Force [N]']
+    index = np.arange(len(time))
+    return index, time, load
+
+
+     
 
 
 def read_matchid_series(file_directory,load_filename):
