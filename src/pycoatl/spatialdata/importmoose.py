@@ -96,6 +96,6 @@ def moose_to_spatialdata(exodus_file):
     # Create metadata table
     metadata = {'data_source':'moose','data_location':exodus_file}
     
-    mb = SpatialData(data_sets,index,time,load,metadata)
+    mb = SpatialData(data_sets,metadata,index,time,load)
 
     return mb

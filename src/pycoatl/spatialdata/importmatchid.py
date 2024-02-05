@@ -114,6 +114,7 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
     metadata = {'data_source':'matchid', 'data_location':folder_path}
 
     files = os.listdir(folder_path)
+    files.sort()
 
     # Should maybe check indices match, but for now leaving it.
     
