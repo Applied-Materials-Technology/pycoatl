@@ -65,6 +65,19 @@ class SpatialData():
             metadata_dict (dict): New dictionary with additional metadata
         """
         self._metadata.update(metadata_dict)
+
+    def align(self,target):
+        """Uses pyvista built in methods to align with target.
+        Uses spatial matching so will only work with complex geometries.
+        In practice seems better to align FE to DIC.
+
+        Args:
+            target (SpatialData): Target SpatialData to align to.
+        """
+
+        trans_data,trans_matrix = self.data_sets[0].align(target.data_sets[0],return_matrix=True)
+        for data_set in self.data_sets:
+            data_set.transform(trans_matrix)
     
 
 
