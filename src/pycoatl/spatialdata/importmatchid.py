@@ -134,7 +134,7 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
 
         for field in fields:
                 if field == 'v':
-                    data_dict[field].append(current_data[field_lookup(field,version)].to_numpy())
+                    data_dict[field].append(-current_data[field_lookup(field,version)].to_numpy())
                 else:
                     data_dict[field].append(current_data[field_lookup(field,version)].to_numpy())
 
