@@ -18,8 +18,8 @@ exodus_reader = ExodusReader(output_file)
 
 all_sim_data = exodus_reader.read_all_sim_data()
 #%%
-folder = 1
-it = 8
+folder = 6
+it = 6
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/Run/sim-workdir-{}/sim-{}_out.e'.format(folder,it)
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_out.e'
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
@@ -87,13 +87,12 @@ def return_mesh_simdata(simdata,dim3):
     return grid
 
 #%%
-test = return_mesh_simdata(all_sim_data,True)
+test = return_mesh_simdata(all_sim_data,False)
 # %%
 def simdata_to_spatialdata(simdata):
     """Reads simdata from mooseherder exodus reader
      and converts to SpatialData format
     
-
     Args:
         simdata (SimData) : SimData produced by mooseherder exodus reader
     Returns:
@@ -124,30 +123,34 @@ def simdata_to_spatialdata(simdata):
     index = np.arange(len(time))
 
     #Iterate over times.
-    data_sets = []
-    for i in range(len(time)):
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        # add only nodal variables for now.
-        for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
 
-        if x_symm:
-            reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))
-            reflected_grid['disp_x'] = -1*reflected_grid['disp_x']                    
-            current_grid += reflected_grid
-        if y_symm:
-            reflected_grid = current_grid.reflect((0,1,0),point=(0,0,0))
-            reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
-            current_grid += reflected_grid
-        data_sets.append(current_grid)
+    for data in simdata.node_vars:
+        initial_mesh[data] = simdata.node_vars[data][surface_nodes]
+    
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+    if x_symm:
+        reflected_grid = initial_mesh.reflect((1,0,0),point=(0,0,0))
+
+        #reflected_grid.plot(cpos='xy')
+        reflected_grid['disp_x'] = -1*reflected_grid['disp_x']  
+        reflected_grid.plot(cpos='xy',jupyter_backend='static',scalars=reflected_grid['disp_x'][:,-1]) 
+        #print(reflected_grid['disp_x']) 
+        #print(-1*reflected_grid['disp_x'])                  
+        initial_mesh += reflected_grid
+
+    if y_symm:
+        reflected_grid = initial_mesh.reflect((0,1,0),point=(0,0,0))
+        reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
+        initial_mesh += reflected_grid
+
+    initial_mesh.plot(cpos='xy',jupyter_backend='static',scalars=initial_mesh['disp_x'][:,-1])
+
+    mb = SpatialData(initial_mesh,metadata,index,time,load)
 
     return mb
 # %%
 test = simdata_to_spatialdata(all_sim_data)
+#test.mesh_data.plot()
 # %%
 simdata = all_sim_data
 connect = simdata.connect['connect1']
