@@ -12,7 +12,7 @@ class SpatialData():
     Must be able to store metadata.
     """
 
-    def __init__(self,data_sets,metadata,index=None,time=None,load=None):
+    def __init__(self,mesh_data,metadata,index=None,time=None,load=None):
         """
 
         Args:
@@ -22,16 +22,16 @@ class SpatialData():
             load (float array): _description_ 
             metadata (dict): _description_
         """
-        self.data_sets = data_sets # List of pyvista meshes.
+        self.mesh_data = mesh_data # List of pyvista meshes.
 
-        self._index = index
-        self._time = time
-        self._load = load
-        self._metadata = metadata # dict of whatever metadata we want.
+        self.index = index
+        self.time = time
+        self.load = load
+        self.metadata = metadata # dict of whatever metadata we want.
 
         # Basic checks & warns
-        if len(self.data_sets) != len(self._time):
-            print('Warning: Number of load steps does not match number of data sets.')
+        #if len(self.data_sets) != len(self._time):
+        #    print('Warning: Number of load steps does not match number of data sets.')
 
 
     def __str__(self):
@@ -75,9 +75,7 @@ class SpatialData():
             target (SpatialData): Target SpatialData to align to.
         """
 
-        trans_data,trans_matrix = self.data_sets[0].align(target.data_sets[0],return_matrix=True)
-        for data_set in self.data_sets:
-            data_set.transform(trans_matrix)
+        trans_data,trans_matrix = self.mesh_data.align(target.mesh_data,return_matrix=True)
     
 
 
@@ -92,7 +90,7 @@ class SpatialData():
         Returns:
             SpatialData: A new SpatialData instance with the interpolated data.
         """
-        bounds = self.data_sets[0].bounds
+        bounds = self.mesh_data.bounds
         # Create regular grid to interpolate to
         xr = np.linspace(bounds[0],bounds[1],int((bounds[1]-bounds[0])/spacing))
         yr = np.linspace(bounds[2],bounds[3],int((bounds[3]-bounds[2])/spacing))
@@ -160,7 +158,7 @@ class SpatialData():
                 points_array.append(neighbours)
             return points_array
 
-        points_list = get_points_neighbours(self.data_sets[0],window_size)
+        points_list = get_points_neighbours(self.mesh_data,window_size)
 
 
         @jit(nopython=True)

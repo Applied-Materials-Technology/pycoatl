@@ -38,25 +38,23 @@ def abaqus_to_spatialdata(datapickle):
     index = np.arange(len(load))
     time = index # For now.
     data_sets = []
-    for i in range(len(load)):
 
-        # Local variables
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        current_grid['u'] = dataset[1][1][i]
-        current_grid['v'] = dataset[1][2][i]
-        current_grid['w'] = dataset[1][3][i]
-        current_grid['exx'] = dataset[1][4][i]
-        current_grid['eyy'] = dataset[1][5][i]
-        current_grid['exy'] = dataset[1][6][i]
+
+    # Local variables
+
+    initial_mesh['u'] = dataset[1][1]
+    initial_mesh['v'] = dataset[1][2]
+    initial_mesh['w'] = dataset[1][3]
+    initial_mesh['exx'] = dataset[1][4]
+    initial_mesh['eyy'] = dataset[1][5]
+    initial_mesh['exy'] = dataset[1][6]
         
         # Add in symmetry here. Y symmetry may be more tricky as it won't flip disp_y I suspect.
-       
-        data_sets.append(current_grid)
+
     
     # Create metadata table
     metadata = {'data_source':'abaqus','data_location':datapickle}
     
-    mb = SpatialData(data_sets,index,time,load,metadata)
+    mb = SpatialData(data_sets,metadata,index,time,load)
 
     return mb

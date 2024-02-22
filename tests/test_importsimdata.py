@@ -16,4 +16,4 @@ def test_import():
     dd = simdata_to_spatialdata(all_sim_data)
     #assert dd._load[0] == pytest.approx(197.614)
     #assert dd._load[-1] == pytest.approx(1086.025)
-    dd.data_sets[-1].plot(scalars='plastic_strain_yy',theme=get_standard_theme())
+    dd.mesh_data.plot(scalars= dd.mesh_data['plastic_strain_yy'][:,-1],theme=get_standard_theme())

@@ -82,25 +82,20 @@ def simdata_to_spatialdata(simdata):
     index = np.arange(len(time))
 
     #Iterate over times.
-    data_sets = []
-    for i in range(len(time)):
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        # add only nodal variables for now.
-        for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
 
-        if x_symm:
-            reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))
-            reflected_grid['disp_x'] = -1*reflected_grid['disp_x']                    
-            current_grid += reflected_grid
-        if y_symm:
-            reflected_grid = current_grid.reflect((0,1,0),point=(0,0,0))
-            reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
-            current_grid += reflected_grid
-        data_sets.append(current_grid)
+    for data in simdata.node_vars:
+        initial_mesh[data] = simdata.node_vars[data][surface_nodes]
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+    if x_symm:
+        reflected_grid = initial_mesh.reflect((1,0,0),point=(0,0,0))
+        reflected_grid['disp_x'] = -1*reflected_grid['disp_x']                    
+        initial_mesh += reflected_grid
+    if y_symm:
+        reflected_grid = initial_mesh.reflect((0,1,0),point=(0,0,0))
+        reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
+        initial_mesh += reflected_grid
+    
+
+    mb = SpatialData(initial_mesh,metadata,index,time,load)
 
     return mb

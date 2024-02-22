@@ -76,16 +76,15 @@ def return_mesh_matchid(matchid_dataframe,version):
 def add_data_matchid(unstructured_grid,matchid_dataframe,fields,version):
     """Adds data from matchid_dataframe import to existing pyvista unstructured grid.
     Args:
-        unstructured_grid (pvyista unstructured grid): Mesh to add fields to.
         matchid_dataframe (dataframe): Pandas dataframe with data from a particular timestep
         fields (list of str): list of fields in the data that should be added to the mesh.
     """   
-    
+    data_dict = {}
     for field in fields:
         if field == 'v':
-            unstructured_grid.point_data[field] = -matchid_dataframe[field_lookup(field,version)].to_numpy()
+            data_dict[field] = -matchid_dataframe[field_lookup(field,version)].to_numpy()
         else:
-            unstructured_grid.point_data[field] = matchid_dataframe[field_lookup(field,version)].to_numpy()
+            data_dict[field] = matchid_dataframe[field_lookup(field,version)].to_numpy()
 
 
 
@@ -125,17 +124,24 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
     initial_mesh = return_mesh_matchid(initial,version)
 
     #Assuming that the files are in order.
-    data_sets = []
+    data_dict = {}
+    for field in fields:
+        data_dict[field]= []
+
     for file in files:
         filename = folder_path + path_sep + file
         current_data = pd.read_csv(filename)
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        add_data_matchid(current_grid,current_data,fields,version)
-        data_sets.append(current_grid)
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+        for field in fields:
+                if field == 'v':
+                    data_dict[field].append(current_data[field_lookup(field,version)].to_numpy())
+                else:
+                    data_dict[field].append(current_data[field_lookup(field,version)].to_numpy())
+
+    for field in fields:
+        initial_mesh[field] = np.array(data_dict[field]).T
+
+    mb = SpatialData(initial_mesh,metadata,index,time,load)
 
     return mb
 

@@ -112,23 +112,27 @@ def davis_to_spatialdata(folder_path,load_filename,fields=['X-displacement [mm]'
 
     #Assuming that the files are in order.
     #Currently goes from 1st file. 0th file has more points somehow.
-    data_sets = []
+    data_dict = {}
+    for field in fields:
+        data_dict[field]= []
+
     for file in files[1:]:
         filename = folder_path + path_sep + file
         current_data = pd.read_csv(filename,encoding = 'latin-1',sep=';')
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        add_data_davis(current_grid,current_data,fields)
-        #Rename fields 
-        current_grid.rename_array('X-displacement [mm]','u')
-        current_grid.rename_array('Y-displacement [mm]','v')
-        current_grid.rename_array('Z-displacement [mm]','w')
-        current_grid.rename_array('Exx [S]','exx')
-        current_grid.rename_array('Eyy [S]','eyy')
-        current_grid.rename_array('Exy [S]','exy')
-        data_sets.append(current_grid)
+       
+        for field in fields:
+            data_dict[field].append(current_data[field].to_numpy())
 
-    mb = SpatialData(data_sets,index,time,load,metadata)
+    for field in fields:
+        initial_mesh[field] = np.array(data_dict[field]).T
+
+    initial_mesh.rename_array('X-displacement [mm]','u')
+    initial_mesh.rename_array('Y-displacement [mm]','v')
+    initial_mesh.rename_array('Z-displacement [mm]','w')
+    initial_mesh.rename_array('Exx [S]','exx')
+    initial_mesh.rename_array('Eyy [S]','eyy')
+    initial_mesh.rename_array('Exy [S]','exy')
+
+    mb = SpatialData(initial_mesh,metadata,index,time,load)
 
     return mb

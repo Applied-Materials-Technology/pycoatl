@@ -5,7 +5,7 @@ import sys
 from pycoatl.spatialdata.spatialdata import SpatialData
 from mooseherder.exodusreader import ExodusReader
 
-
+### DEPRECATED ####
 def return_mesh_moose(exodus_file,dim3):
     """Returns a pyvista unstructured grid from an exodus file.
     Mesh should have a side side called 'Visible-Surface' that is 
