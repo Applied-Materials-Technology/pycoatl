@@ -131,7 +131,7 @@ def simdata_to_spatialdata(simdata):
         current_grid.copy_from(initial_mesh)
         # add only nodal variables for now.
         for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes]
+            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
 
         if x_symm:
             reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))

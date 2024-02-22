@@ -52,7 +52,6 @@ def simdata_to_spatialdata(simdata):
     """Reads simdata from mooseherder exodus reader
      and converts to SpatialData format
     
-
     Args:
         simdata (SimData) : SimData produced by mooseherder exodus reader
     Returns:
@@ -90,7 +89,7 @@ def simdata_to_spatialdata(simdata):
         current_grid.copy_from(initial_mesh)
         # add only nodal variables for now.
         for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes]
+            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
 
         if x_symm:
             reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))
