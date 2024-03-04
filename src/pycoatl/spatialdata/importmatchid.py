@@ -141,7 +141,7 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
     for field in fields:
         initial_mesh[field] = np.array(data_dict[field]).T
 
-    mb = SpatialData(initial_mesh,metadata,index,time,load)
+    mb = SpatialData(initial_mesh,metadata,index,time,load.to_numpy())
 
     return mb
 

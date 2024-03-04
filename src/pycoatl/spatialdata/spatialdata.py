@@ -66,7 +66,7 @@ class SpatialData():
         """
         self._metadata.update(metadata_dict)
 
-    def align(self,target):
+    def align(self,target,scale_factor):
         """Uses pyvista built in methods to align with target.
         Uses spatial matching so will only work with complex geometries.
         In practice seems better to align FE to DIC.
@@ -75,8 +75,8 @@ class SpatialData():
             target (SpatialData): Target SpatialData to align to.
         """
 
-        trans_data,trans_matrix = self.mesh_data.align(target.mesh_data,return_matrix=True)
-    
+        trans_data,trans_matrix = self.mesh_data.align(target.mesh_data.scale(scale_factor),return_matrix=True)
+        self.mesh_data.transform(trans_matrix)
 
 
     def interpolate_to_grid(self,spacing=0.2):
