@@ -13,7 +13,8 @@ import matplotlib.pyplot as plt
 
 #%% read something
 #output_file = Path('/home/rspencer/pycoatl/data/moose-sim-1_out.e')
-output_file = Path('/home/rspencer/moose_work/Viscoplastic_Creep/HVPF_Sat/Run/moose-workdir-1/moose-sim-152_out.e')
+#output_file = Path('/home/rspencer/moose_work/Viscoplastic_Creep/HVPF_Sat/Run/moose-workdir-1/moose-sim-152_out.e')
+output_file = Path(r'C:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Anaconda_Python\Test\pycoatl\data\moose-sim-1_out.e')
 exodus_reader = ExodusReader(output_file)
 
 all_sim_data = exodus_reader.read_all_sim_data()

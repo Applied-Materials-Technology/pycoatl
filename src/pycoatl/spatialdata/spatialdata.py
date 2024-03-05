@@ -24,13 +24,13 @@ class SpatialData():
         """
         self.data_sets = data_sets # List of pyvista meshes.
 
-        self._index = index
-        self._time = time
-        self._load = load
-        self._metadata = metadata # dict of whatever metadata we want.
+        self.index = index
+        self.time = time
+        self.load = load
+        self.metadata = metadata # dict of whatever metadata we want.
 
         # Basic checks & warns
-        if len(self.data_sets) != len(self._time):
+        if len(self.data_sets) != len(self.time):
             print('Warning: Number of load steps does not match number of data sets.')
 
 
@@ -244,3 +244,12 @@ class SpatialData():
             mesh['exx'] =exx
             mesh['eyy'] =eyy
             mesh['exy'] =exy
+
+    def plot(self,step,field='v',*args,**kwargs):
+        """Use pyvista's built in methods to plot data
+
+        Args:
+            step (int): Time step to plot
+            field ('str'): Field to plot, defaults to v
+        """
+        self.data_sets[step].plot(scalars=field,cpos='xy',*args,**kwargs)
