@@ -36,6 +36,7 @@ class SpatialData():
         self.load = load
         self.metadata = metadata # dict of whatever metadata we want.
         self.transformation_matrix = None
+        self.metadata['transformations'] = []
 
         # Basic checks & warns
         for field in self.data_fields:
@@ -107,6 +108,21 @@ class SpatialData():
         trans_data,trans_matrix = self.mesh_data.align(target.mesh_data.scale(scale_factor),return_matrix=True)
         self.mesh_data.transform(trans_matrix)
         self.transformation_matrix = trans_matrix
+        self.rotate_fields()
+        self.metadata['transformations'].append(self.transformation_matrix)
+        
+
+    def rotate_data(self,transformation_matrix: NDArray) ->None:
+        """Rotate all the data. Mesh and fields.
+
+        Args:
+            transformation_matrix (NDArray): _description_
+        """
+        
+        self.mesh_data.transform(transformation_matrix)
+        self.transformation_matrix = transformation_matrix
+        self.rotate_fields()
+        self.metadata['transformations'].append(self.transformation_matrix)
 
     def rotate_fields(self) -> None:
         """Rotates the underlying vector/tensor fields.
