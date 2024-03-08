@@ -6,9 +6,12 @@ import pandas as pd
 import os
 from pycoatl.spatialdata.spatialdata import SpatialData
 import platform
+from pycoatl.spatialdata.tensorfield import vector_field
+from pycoatl.spatialdata.tensorfield import rank_two_field
+from pathlib import Path
+from typing import Callable
 
-
-def return_mesh_matchid(matchid_dataframe,version):
+def return_mesh_matchid(matchid_dataframe: pd.DataFrame,version: str) -> pv.UnstructuredGrid:
     """Takes a pandas dataframe imported from a matchid csv export,
     theoretically any field order, and converts to a pyvista unstructured mesh.
     Needs at minimumum to contain 'x_pic','y_pic' and 'x', 'y' and 'z' coordinates.
@@ -73,23 +76,7 @@ def return_mesh_matchid(matchid_dataframe,version):
 
     return grid
 
-def add_data_matchid(unstructured_grid,matchid_dataframe,fields,version):
-    """Adds data from matchid_dataframe import to existing pyvista unstructured grid.
-    Args:
-        unstructured_grid (pvyista unstructured grid): Mesh to add fields to.
-        matchid_dataframe (dataframe): Pandas dataframe with data from a particular timestep
-        fields (list of str): list of fields in the data that should be added to the mesh.
-    """   
-    
-    for field in fields:
-        if field == 'v':
-            unstructured_grid.point_data[field] = -matchid_dataframe[field_lookup(field,version)].to_numpy()
-        else:
-            unstructured_grid.point_data[field] = matchid_dataframe[field_lookup(field,version)].to_numpy()
-
-
-
-def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','eyy','exy'],version='2024.1',loadfile_format='Image.csv'):
+def matchid_to_spatialdata(folder_path: Path,load_filename: Path,fields=['u','v','w','exx','eyy','exy'],version='2024.1',loadfile_format='Image.csv') -> SpatialData:
     """Reads matchid data and converts to SpatialData format
     
 
@@ -103,11 +90,6 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
         SpatialData: SpatialData instance with appropriate metadata.
     """
     #Something here
-    #index, load = read_load_file(load_filename)
-    #load = load[1:]
-    #index = index[1:]
-    # Need some other way to get times, but in the absence of that this will do for now.
-    #time = index-1
     index, time, load = load_lookup(loadfile_format)(load_filename)
     
     # Create metadata table
@@ -118,28 +100,42 @@ def matchid_to_spatialdata(folder_path,load_filename,fields=['u','v','w','exx','
 
     # Should maybe check indices match, but for now leaving it.
     
-    path_sep = '/'
-    if platform.system == 'Windows':
-        path_sep = '\\'
-    initial = pd.read_csv(folder_path + path_sep + files[0])
+    initial = pd.read_csv(folder_path / files[0])
     initial_mesh = return_mesh_matchid(initial,version)
 
     #Assuming that the files are in order.
-    data_sets = []
-    for file in files:
-        filename = folder_path + path_sep + file
-        current_data = pd.read_csv(filename)
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        add_data_matchid(current_grid,current_data,fields,version)
-        data_sets.append(current_grid)
+    data_dict = {}
+    for field in fields:
+        data_dict[field]= []
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+    for file in files:
+        filename = folder_path / file
+        current_data = pd.read_csv(filename)
+
+        for field in fields:
+                if field == 'v':
+                    data_dict[field].append(-current_data[field_lookup(field,version)].to_numpy())
+                else:
+                    data_dict[field].append(current_data[field_lookup(field,version)].to_numpy())
+
+    for field in fields:
+        data_dict[field] = np.array(data_dict[field]).T
+
+    #Assemble fields
+    disp = np.stack((data_dict['u'],data_dict['v'],data_dict['w']),axis=1)
+    dummy = np.zeros_like(data_dict['exx'])
+    strain = np.stack((data_dict['exx'],data_dict['exy'],dummy,data_dict['exy'],data_dict['eyy'],dummy,dummy,dummy,dummy),axis=1)
+
+    displacements = vector_field(disp)
+    ea_strains = rank_two_field(strain)
+
+    field_dict = {'displacements':displacements,'strains':ea_strains}
+
+    mb = SpatialData(initial_mesh,field_dict,metadata,index,time,load)
 
     return mb
 
-def field_lookup(field,version):
+def field_lookup(field: str,version: str) -> str:
     """As column names in the exports keep changing, nested dict to keep track
 
     Args:
@@ -180,7 +176,15 @@ def field_lookup(field,version):
     return lookup_dict[version][field]
 
 
-def load_lookup(fileformat):
+def load_lookup(fileformat: str)->Callable[[Path],pd.DataFrame]:
+    """Get the correct method for the load information file.
+
+    Args:
+        fileformat (str): Either 'Image.csv' or 'Davis'
+
+    Returns:
+        function: Import method for that type.
+    """
 
     lookup_dict = {'Image.csv':read_matchid_csv,
                    'Davis'    :read_load_file}

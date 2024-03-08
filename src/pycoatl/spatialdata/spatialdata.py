@@ -5,6 +5,12 @@
 import numpy as np
 import pyvista as pv
 from numba import jit
+from numpy._typing import NDArray
+from typing import Sequence
+from typing import Self
+from pycoatl.spatialdata.tensorfield import scalar_field
+from pycoatl.spatialdata.tensorfield import vector_field
+from pycoatl.spatialdata.tensorfield import rank_two_field
 
 class SpatialData():
     """Spatial data from DIC and FE using PyVista
@@ -12,27 +18,50 @@ class SpatialData():
     Must be able to store metadata.
     """
 
-    def __init__(self,data_sets,metadata,index=None,time=None,load=None):
+    def __init__(self,mesh_data: pv.UnstructuredGrid,data_fields: dict,metadata: dict,index=None,time=None,load=None):
         """
 
         Args:
-            data_sets (list of pyvista mesh): List of the pyvista data meshes.
+            mesh_data (pyvista mesh): pyvista data meshes.
+            data_fields (dict of vector_field, rank_two_field) : list of associate tensor fields
             index (int array): Indices of the data sets.
             time (float array): Times 
             load (float array): _description_ 
             metadata (dict): _description_
         """
-        self.data_sets = data_sets # List of pyvista meshes.
-
+        self.mesh_data = mesh_data # List of pyvista meshes.
+        self.data_fields = data_fields
         self.index = index
         self.time = time
         self.load = load
         self.metadata = metadata # dict of whatever metadata we want.
+        self.transformation_matrix = None
 
         # Basic checks & warns
-        if len(self.data_sets) != len(self.time):
-            print('Warning: Number of load steps does not match number of data sets.')
+        for field in self.data_fields:
+            if  self.data_fields[field].n_steps != len(self.time):
+                print('Warning: Number of load steps does not match number of data sets in {}.'.format(field))
 
+    def get_mesh_component(self,data_field_name: str,component: Sequence, time_step: int,alias = None) -> pv.UnstructuredGrid:
+        """Return a mesh with a scalar field comprising data_field and component
+        Might want to modify a mesh scalars or add to existing mesh in future, or
+        add multiple components to the same mesh.
+        Args:
+            data_field_name (str): Name of the key in the field dict
+            component (Sequence): index of the component to plot
+            alias (str, optional): Name to call the field in the mesh
+
+        Returns:
+            pv.UnstructuredGrid: Mesh with attached data
+        """
+        output_mesh = pv.UnstructuredGrid()
+        output_mesh.copy_from(self.mesh_data)
+        if alias is not None:
+            mesh_field_name = alias
+        else:
+            mesh_field_name = data_field_name + str(component)
+        output_mesh[mesh_field_name] = self.data_fields[data_field_name].get_component_field(component,time_step)
+        return output_mesh
 
     def __str__(self):
         """Make a nicely formatted string of metadata for use.
@@ -49,7 +78,7 @@ class SpatialData():
     def get_times(self):
         return self._time
     
-    def add_metadata_item(self,key,value):
+    def add_metadata_item(self,key: str,value):
         """Adding individual metadata item.
 
         Args:
@@ -66,7 +95,7 @@ class SpatialData():
         """
         self._metadata.update(metadata_dict)
 
-    def align(self,target):
+    def align(self,target: Self,scale_factor: int) -> None:
         """Uses pyvista built in methods to align with target.
         Uses spatial matching so will only work with complex geometries.
         In practice seems better to align FE to DIC.
@@ -75,10 +104,18 @@ class SpatialData():
             target (SpatialData): Target SpatialData to align to.
         """
 
-        trans_data,trans_matrix = self.data_sets[0].align(target.data_sets[0],return_matrix=True)
-        for data_set in self.data_sets:
-            data_set.transform(trans_matrix)
-    
+        trans_data,trans_matrix = self.mesh_data.align(target.mesh_data.scale(scale_factor),return_matrix=True)
+        self.mesh_data.transform(trans_matrix)
+        self.transformation_matrix = trans_matrix
+
+    def rotate_fields(self) -> None:
+        """Rotates the underlying vector/tensor fields.
+        Must be used after align.
+        """
+
+        for field in self.data_fields.values():
+            field.rotate(self.transformation_matrix)
+  
 
 
     def interpolate_to_grid(self,spacing=0.2):
@@ -245,11 +282,12 @@ class SpatialData():
             mesh['eyy'] =eyy
             mesh['exy'] =exy
 
-    def plot(self,step,field='v',*args,**kwargs):
+    def plot(self,data_field='displacements',component=[1],time_step = -1 ,*args,**kwargs):
         """Use pyvista's built in methods to plot data
 
         Args:
             step (int): Time step to plot
             field ('str'): Field to plot, defaults to v
         """
-        self.data_sets[step].plot(scalars=field,cpos='xy',*args,**kwargs)
+        mesh_data = self.get_mesh_component(data_field,component,time_step)
+        mesh_data.plot(scalars=data_field+str(component),cpos='xy',*args,**kwargs)
