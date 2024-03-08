@@ -1,8 +1,11 @@
 import numpy as np
 import pyvista as pv
 from pycoatl.spatialdata.spatialdata import SpatialData
+from pycoatl.spatialdata.tensorfield import vector_field
+from pycoatl.spatialdata.tensorfield import rank_two_field
 
-def return_mesh_simdata(simdata,dim3):
+
+def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
     """Return a mesh constructed from the simdata object.
 
     Args:
@@ -48,7 +51,7 @@ def return_mesh_simdata(simdata,dim3):
     grid = pv.UnstructuredGrid(cells,celltypes,points)
     return grid
 
-def simdata_to_spatialdata(simdata):
+def simdata_to_spatialdata(simdata)->SpatialData:
     """Reads simdata from mooseherder exodus reader
      and converts to SpatialData format
     
@@ -80,27 +83,76 @@ def simdata_to_spatialdata(simdata):
     time = simdata.time
     load = -simdata.glob_vars['react_y']
     index = np.arange(len(time))
+    
+    data_dict = {}
+    for field in simdata.node_vars:
+        data_dict[field] = simdata.node_vars[field]
 
-    #Iterate over times.
-    data_sets = []
-    for i in range(len(time)):
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        # add only nodal variables for now.
-        for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
+    if x_symm:
+        #Reflect mesh
+        initial_mesh_ref_x = initial_mesh.reflect((1,0,0),point=(0,0,0))
+        # Find overlapping points
+        overlap= initial_mesh.points[:,0]==initial_mesh_ref_x.points[:,0]
 
-        if x_symm:
-            reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))
-            reflected_grid['disp_x'] = -1*reflected_grid['disp_x']                    
-            current_grid += reflected_grid
-        if y_symm:
-            reflected_grid = current_grid.reflect((0,1,0),point=(0,0,0))
-            reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
-            current_grid += reflected_grid
-        data_sets.append(current_grid)
+        for field in data_dict:
+            if field == 'disp_x':
+                data_dict[field] = np.concatenate((data_dict[field],-1*data_dict[field][~overlap]))
+            else:
+                data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))
+        initial_mesh+=initial_mesh_ref_x
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+    if y_symm:
+        #Reflect mesh
+        initial_mesh_ref_y = initial_mesh.reflect((0,1,0),point=(0,0,0))
+        # Find overlapping points
+        overlap= initial_mesh.points[:,1]==initial_mesh_ref_y.points[:,1]
+
+        for field in data_dict:
+            if field == 'disp_y':
+                data_dict[field] = np.concatenate((data_dict[field],-1*data_dict[field][~overlap]))
+            else:
+                data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))
+        initial_mesh+=initial_mesh_ref_y
+
+    dummy = np.zeros_like(data_dict['disp_y'])
+    if dim3:
+        displacement = np.stack((data_dict['disp_x'],data_dict['disp_y'],data_dict['disp_z']),axis=1)
+    else:
+        displacement = np.stack((data_dict['disp_x'],data_dict['disp_y'],dummy),axis=1)
+    
+    #Assuming symmetric strain tensor
+    tensor_components = ['xx','xy','xz','xy','yy','yz','xz','yz','zz']
+    #Elastic strain
+    elastic_stack = []
+    for comp in tensor_components:
+        if any('elastic_strain_'+comp in s for s in simdata.node_vars.keys()):
+            elastic_stack.append(data_dict['elastic_strain_'+comp])
+        else:
+            elastic_stack.append(dummy)
+    elastic_strains = np.stack(elastic_stack,axis=1)
+    #Plastic strain
+    plastic_stack = []
+    for comp in tensor_components:
+        if any('plastic_strain_'+comp in s for s in simdata.node_vars.keys()):
+            plastic_stack.append(data_dict['plastic_strain_'+comp])
+        else:
+            plastic_stack.append(dummy)
+    plastic_strains = np.stack(plastic_stack,axis=1)
+    #Stress
+    stress_stack = []
+    for comp in tensor_components:
+        if any('stress_'+comp in s for s in simdata.node_vars.keys()):
+            stress_stack.append(data_dict['stress_'+comp])
+        else:
+            stress_stack.append(dummy)
+    stresses = np.stack(stress_stack,axis=1)
+
+
+    data_fields = {'displacement'  :vector_field(displacement),
+                   'elastic_strain':rank_two_field(elastic_strains),
+                   'plastic_strain':rank_two_field(plastic_strains),
+                   'stress':rank_two_field(stresses)
+                   }
+    mb = SpatialData(initial_mesh,data_fields,metadata,index,time,load)
 
     return mb

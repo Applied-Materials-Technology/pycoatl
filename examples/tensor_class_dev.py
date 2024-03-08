@@ -13,15 +13,17 @@ from pycoatl.spatialdata.importmatchid import matchid_to_spatialdata
 import numpy.typing as npt
 from abc import ABC, abstractmethod
 from typing import Sequence
+from pycoatl.spatialdata.importsimdata import return_mesh_simdata
+from pycoatl.spatialdata.importsimdata import simdata_to_spatialdata
 
 #%% read something
 #output_file = Path('/home/rspencer/pycoatl/data/moose-sim-1_out.e')
 #output_file = Path('/home/rspencer/moose_work/Viscoplastic_Creep/HVPF_Sat/Run/moose-workdir-1/moose-sim-152_out.e')
-output_file = Path(r'C:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Anaconda_Python\Test\pycoatl\data\moose-sim-1_out.e')
+output_file = Path(r'C:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Anaconda_Python\Test\pycoatl\data\sim-40_out.e')
 exodus_reader = ExodusReader(output_file)
 
-all_sim_data = exodus_reader.read_all_sim_data()
-
+#all_sim_data = exodus_reader.read_all_sim_data()
+simdata = exodus_reader.read_all_sim_data()
 
 
 # %%
@@ -278,4 +280,34 @@ if rot_mat_t.shape==(4,4):
 displacements.rotate(rot_mat)
 # %%
 r13 = np.swapaxes(np.tile(rot_mat[2,2],(200,6,1)),1,2)
+# %%
+test = return_mesh_simdata(all_sim_data,False)
+# %%
+test_r = test.reflect((1,0,0),point=(0,0,0))
+# %%
+test_comb = test + test_r
+test_comb.plot()
+# %%
+# Should fail
+test_comb['test'] = np.concatenate((all_sim_data.node_vars['disp_x'],all_sim_data.node_vars['disp_x']),axis=0)
+# %%
+# Should fail
+x_data=all_sim_data.node_vars['disp_x'][:,-1]
+overlap= test.points[:,0]==test_r.points[:,0]
+x_data_r = -1*x_data[~overlap]
+test_comb['test'] = np.concatenate((x_data,x_data_r),axis=0)
+test_comb.plot(scalars='test')
+
+# %%
+output_file = Path(r'C:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Anaconda_Python\Test\pycoatl\data\sim-40_out.e')
+exodus_reader = ExodusReader(output_file)
+
+#all_sim_data = exodus_reader.read_all_sim_data()
+simdata = exodus_reader.read_all_sim_data()
+test = simdata_to_spatialdata(simdata)
+
+# %%
+rot_mat_t = np.array([[0,1,0,0],[-1,0,0,0],[0,0,1,0],[0,0,0,1]])
+test.rotate_data(rot_mat_t)
+test.plot('displacement',[1,1],-20)
 # %%

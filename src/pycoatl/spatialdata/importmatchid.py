@@ -129,7 +129,7 @@ def matchid_to_spatialdata(folder_path: Path,load_filename: Path,fields=['u','v'
     displacements = vector_field(disp)
     ea_strains = rank_two_field(strain)
 
-    field_dict = {'displacements':displacements,'strains':ea_strains}
+    field_dict = {'displacement':displacements,'total_strain':ea_strains}
 
     mb = SpatialData(initial_mesh,field_dict,metadata,index,time,load)
 
