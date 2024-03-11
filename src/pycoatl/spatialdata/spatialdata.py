@@ -37,6 +37,8 @@ class SpatialData():
         self.metadata = metadata # dict of whatever metadata we want.
         self.transformation_matrix = None
         self.metadata['transformations'] = []
+        self.n_steps = len(time)
+        self.n_points = self.mesh_data.number_of_points
 
         # Basic checks & warns
         for field in self.data_fields:
@@ -170,7 +172,7 @@ class SpatialData():
         mb_interpolated = SpatialData(data_sets_int,self._index,self._time,self._load,metadata)
         return mb_interpolated
     
-    def window_differentation(self,data_range = 'all',window_size=5):
+    def window_differentation(self,window_size=5):
         """Differentiate spatialdata using subwindow approach to 
         mimic DIC filter. Adds the differentiated fields into the meshes in
         the spatial data.
@@ -179,11 +181,10 @@ class SpatialData():
 
         Args:
             spatialdata (SpatialData): SpatialData instance from FE
-            data_range (str, optional): Differentiate all time steps, or just last one. Should be 'all' or 'last'. Defaults to 'all'.
             window_size (int, optional): Subwindow size. Defaults to 5.
         """
 
-        def get_points_neighbours(mesh,window_size=5):
+        def get_points_neighbours(mesh: pv.UnstructuredGrid,window_size=5)->list[int]:
             """Get the neighbouring points for a mesh.
             Initial phase of the window differentiation.
             Assumes a regular-like quad mesh. Such that surrounding each point are 
@@ -213,24 +214,21 @@ class SpatialData():
                 points_array.append(neighbours)
             return points_array
 
-        points_list = get_points_neighbours(self.data_sets[0],window_size)
+        points_list = get_points_neighbours(self.mesh_data,window_size)
 
-
-        @jit(nopython=True)
-        def L_Q4_n(x):
-            
+        def L_Q4(x):
             return np.vstack((np.ones(x[0].shape),x[0],x[1],x[0]*x[1])).T
 
-        @jit(nopython=True)
-        def evaluate_point_dev_n(point_data,data):
+
+        def evaluate_point_dev(point_data,data):
             """
             Fit an calculate deformation gradient at each point.
             """
             window_spread = int((window_size - 1) /2)
             
             xdata = point_data[:,:2].T
-            xbasis = L_Q4_n(xdata)
-            ydata = data.ravel()
+            xbasis = L_Q4(xdata)
+            ydata = data
 
             if len(ydata)<window_size**2:
                 partial_dx = np.nan
@@ -244,8 +242,8 @@ class SpatialData():
                 
             return partial_dx, partial_dy
 
-        @jit(nopython=True)    
-        def euler_almansi_n(dudx,dudy,dvdx,dvdy):
+  
+        def euler_almansi(dudx,dudy,dvdx,dvdy):
             """
             Calculates the Euler-Almansi strain tensor from the given gradient data.
             Can implement more in future.
@@ -258,45 +256,47 @@ class SpatialData():
             exy = dvdx*(1+dudx) + dudy*(1+dvdy)
             return exx,eyy,exy
         
-        def differentiate_mesh(mesh,points_list):
-            n_points = mesh.number_of_points
-            dudx = np.empty(n_points)
-            dvdx = np.empty(n_points)
-            dudy = np.empty(n_points)
-            dvdy = np.empty(n_points)
+            
+        dudx = np.empty((self.n_points,self.n_steps))
+        dvdx = np.empty((self.n_points,self.n_steps))
+        dudy = np.empty((self.n_points,self.n_steps))
+        dvdy = np.empty((self.n_points,self.n_steps))
 
-            for point in range(n_points):
-                #point = 0
-                neighbours = points_list[point]
-                point_data = mesh.points[neighbours]
-                #x_coords = point_data[:,0]
-                #y_coords = point_data[:,1]
-                u = mesh.point_data['disp_x'][neighbours]
-                v = mesh.point_data['disp_y'][neighbours]
-                
-                dudx[point],dudy[point] = evaluate_point_dev_n(point_data,u)
-                dvdx[point],dvdy[point] = evaluate_point_dev_n(point_data,v)
+        # Get u and v data over time
+        f= self.data_fields['displacement'].get_fields([0,1])
+        u_all = f[0]
+        v_all = f[1]
 
-            exx,eyy,exy = euler_almansi_n(dudx,dudy,dvdx,dvdy)
+        for point in range(self.n_points):
+            #point = 0
+            neighbours = points_list[point]
+            point_data = self.mesh_data.points[neighbours]
+            u = u_all[neighbours,:]
+            v= v_all[neighbours,:]
+            
+            dudx[point],dudy[point] = evaluate_point_dev(point_data,u)
+            dvdx[point],dvdy[point] = evaluate_point_dev(point_data,v)
 
-            return exx,eyy,exy
+        exx,eyy,exy = euler_almansi(dudx,dudy,dvdx,dvdy)
+        dummy = np.zeros_like(exx)
+        strain = np.stack((exx,exy,dummy,exy,eyy,dummy,dummy,dummy,dummy),axis=1)
+        ea_strains = rank_two_field(strain)
+        self.data_fields['filter_strain'] = ea_strains
+
         # Update meta data
-        self._metadata['dic_filter'] = True
-        self._metadata['window_size'] = window_size
-        self._metadata['data_range'] = data_range
-        # Iterate over meshes, but ignore metadata which is in posn 0
-        if data_range == 'all':
-            for mesh in self.data_sets:
-                exx,eyy,exy = differentiate_mesh(mesh,points_list)
-                mesh['exx'] =exx
-                mesh['eyy'] =eyy
-                mesh['exy'] =exy
-        elif data_range =='last':
-            mesh = self.data_sets[-1]
-            exx,eyy,exy = differentiate_mesh(mesh,points_list)
-            mesh['exx'] =exx
-            mesh['eyy'] =eyy
-            mesh['exy'] =exy
+        self.metadata['dic_filter'] = True
+        self.metadata['window_size'] = window_size
+
+    def calculate_isotropic_elasticity(self,E: float,nu:float)->None:
+
+
+        #Calculate bulk and shear modulus
+        bulk_mod = E/(3*(1-(2*nu)))
+        shear_mod = E/(2*(1+nu))
+
+        
+
+
 
     def plot(self,data_field='displacement',component=[1],time_step = -1 ,*args,**kwargs):
         """Use pyvista's built in methods to plot data

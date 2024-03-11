@@ -73,6 +73,20 @@ class vector_field(tensor_field_base):
     def get_component_field(self, component: int, time_step: int) -> npt.NDArray:
         return self.data[:,component,time_step]
     
+    def get_fields(self, component: list[int])->list[npt.NDArray]:
+        """Get component fields over all time.
+        Intended to be used in differentiations.
+
+        Args:
+            component (list[int]): List of indices to get
+
+        Returns:
+            list[npt.NDArray]: List of fields corresponding to inputs.
+        """
+        return [self.data[:,x,:] for x in component]
+
+
+    
     @staticmethod
     def dot_product_field(a: npt.NDArray,b: npt.NDArray) -> npt.NDArray: 
         """Dot product between two vector fields
@@ -146,3 +160,40 @@ class rank_two_field(tensor_field_base):
     
     def get_principal(self):
         pass
+
+    def calculate_invariant(self,n:int)->npt.NDArray:
+        """Calculate a given invariant of the tensor.
+        n=1 trace
+        n=2 
+        n=3 det
+        Args:
+            n (int): Int for invariant, 1,2 or 3
+
+        Returns:
+            npt.NDArray: Output
+        """
+
+        if n ==1 :
+            output = self.get_component[0,0]+self.get_component[1,1]+self.get_component[2,2]
+        elif n ==2:
+            output = (
+                self.get_component[0,0]*self.get_component[1,1]
+                + self.get_component[1,1]*self.get_component[2,2]
+                + self.get_component[2,2]*self.get_component[0,0]
+                - self.get_component[0,1]**2
+                - self.get_component[0,2]**2
+                - self.get_component[1,2]**2
+            )
+        elif n==3:
+            output = (
+                self.get_component[0,0]*self.get_component[1,1]*self.get_component[2,2]
+                - self.get_component[0,0]*(self.get_component[1,2]**2)
+                - self.get_component[1,1]*(self.get_component[0,2]**2)
+                - self.get_component[2,2]*(self.get_component[0,1]**2)
+                + 2*self.get_component[0,1]*self.get_component[0,2]*self.get_component[1,2]
+            )
+        else:
+            output = None
+
+            return output
+
