@@ -120,8 +120,15 @@ class SpatialData():
         Args:
             transformation_matrix (NDArray): _description_
         """
+        if transformation_matrix.shape==(3,3): #Assume no translation
+            vtk_transform_matrix = np.zeros((4,4))
+            vtk_transform_matrix[:3,:3] = transformation_matrix
+            vtk_transform_matrix[3,3] = 1
+            self.mesh_data.transform(vtk_transform_matrix)
+        else:
+            self.mesh_data.transform(transformation_matrix)
         
-        self.mesh_data.transform(transformation_matrix)
+        
         self.transformation_matrix = transformation_matrix
         self.rotate_fields()
         self.metadata['transformations'].append(self.transformation_matrix)
@@ -321,13 +328,17 @@ class SpatialData():
             field ('str'): Field to plot, defaults to v
         """
         mesh_data = self.get_mesh_component(data_field,component,time_step)
+        x_length = mesh_data.bounds[1] -mesh_data.bounds[0]
+        y_length = mesh_data.bounds[3] -mesh_data.bounds[2]
         #mesh_data.plot(scalars=data_field+str(component),cpos='xy',*args,**kwargs)
-        pl = pv.Plotter(window_size=[768,1024])
+        if y_length>=x_length:
+            pl = pv.Plotter(window_size=[768,1024])
+        else:
+            pl = pv.Plotter(window_size=[1024,768])
         pl.add_mesh(mesh_data,scalars=data_field+str(component),*args,**kwargs)
         pl.view_xy()
         pl.remove_scalar_bar()
-        x_length = mesh_data.bounds[1] -mesh_data.bounds[0]
-        y_length = mesh_data.bounds[3] -mesh_data.bounds[2]
+        
         if y_length>=x_length:
             pl.add_scalar_bar(title=data_field+str(component),vertical=True,position_x=0.7,position_y = 0.2,label_font_size = 20,title_font_size=20)
         else: 
