@@ -345,5 +345,6 @@ class SpatialData():
             label_format = '%2.0f',
             font_size_factor = 0.8,
             title="Y Distance [mm]")
+        pl.add_text('Time: {:6.2f}, Load: {:6.2f}'.format(self.time[time_step],self.load[time_step]))
         pl.show()
 

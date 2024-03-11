@@ -229,3 +229,34 @@ exx,eyy,exy = euler_almansi_n(dudx,dudy,dvdx,dvdy)
 #%%
 sd.mesh_data['eyy_base'] = eyy
 # %%
+data_field = 'total_strain'
+component = [1,1]
+time_step=1
+mesh_data = sd.get_mesh_component(data_field,component,time_step)
+#mesh_data.plot(scalars=data_field+str(component),cpos='xy',*args,**kwargs)
+pl = pv.Plotter(window_size=[768,1024])
+pl.add_mesh(mesh_data,scalars=data_field+str(component))
+pl.view_xy()
+pl.remove_scalar_bar()
+x_length = mesh_data.bounds[1] -mesh_data.bounds[0]
+y_length = mesh_data.bounds[3] -mesh_data.bounds[2]
+if y_length>=x_length:
+    pl.add_scalar_bar(title=data_field+str(component),vertical=True,position_x=0.7,position_y = 0.2,label_font_size = 20,title_font_size=20)
+else: 
+    pl.add_scalar_bar(title=data_field+str(component),vertical=False,position_x=0.2,position_y = 0.2,label_font_size = 20,title_font_size=20)
+#pl.update_scalar_bar_range([100,180])
+pl.add_ruler(
+    pointa= [mesh_data.bounds[0], mesh_data.bounds[2] - 0.1, 0.0],
+    pointb=[mesh_data.bounds[1], mesh_data.bounds[2] - 0.1, 0.0],
+    label_format = '%2.0f',
+    font_size_factor = 0.8,
+    title="X Distance [mm]")
+pl.add_ruler(
+    pointa= [mesh_data.bounds[0], mesh_data.bounds[3] - 0.1, 0.0],
+    pointb=[mesh_data.bounds[0], mesh_data.bounds[2] - 0.1, 0.0],
+    label_format = '%2.0f',
+    font_size_factor = 0.8,
+    title="Y Distance [mm]")
+pl.add_text('Time: {:6.2f}, Load: {:6.2f}'.format(sd.time[time_step],sd.load[time_step]))
+pl.show()
+# %%
