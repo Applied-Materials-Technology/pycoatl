@@ -287,16 +287,31 @@ class SpatialData():
         self.metadata['dic_filter'] = True
         self.metadata['window_size'] = window_size
 
-    def calculate_isotropic_elasticity(self,E: float,nu:float)->None:
-
-
+    def calculate_isotropic_elasticity(self,E: float,nu:float,strain_field:str)->None:
+        
+        strain = self.data_fields[strain_field]
         #Calculate bulk and shear modulus
         bulk_mod = E/(3*(1-(2*nu)))
         shear_mod = E/(2*(1+nu))
 
-        
+        strain_trace = strain.calculate_invariant(1)/3
 
+        s_11 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([0,0])-strain_trace)
+        s_12 = 2*shear_mod*(strain.get_component([0,1]))
+        s_13 = 2*shear_mod*(strain.get_component([0,2]))
+        s_21 = 2*shear_mod*(strain.get_component([1,0]))
+        s_22 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([1,1])-strain_trace)
+        s_23 = 2*shear_mod*(strain.get_component([1,2]))
+        s_31 = 2*shear_mod*(strain.get_component([2,0]))
+        s_32 = 2*shear_mod*(strain.get_component([2,1]))
+        s_33 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([2,2])-strain_trace)
 
+        stress_tensor = np.squeeze(np.stack((s_11,s_12,s_13,s_21,s_22,s_23,s_31,s_32,s_33,),axis=1))
+
+        self.data_fields['stress'] = rank_two_field(stress_tensor) 
+        self.metadata['stress_calculation'] = 'Isotropic Elasticity'
+        self.metadata['Elastic Modulus'] = E
+        self.metadata['Poissons Ratio'] = nu       
 
     def plot(self,data_field='displacement',component=[1],time_step = -1 ,*args,**kwargs):
         """Use pyvista's built in methods to plot data

@@ -174,26 +174,26 @@ class rank_two_field(tensor_field_base):
         """
 
         if n ==1 :
-            output = self.get_component[0,0]+self.get_component[1,1]+self.get_component[2,2]
+            output = self.get_component([0,0])+self.get_component([1,1])+self.get_component([2,2])
         elif n ==2:
             output = (
-                self.get_component[0,0]*self.get_component[1,1]
-                + self.get_component[1,1]*self.get_component[2,2]
-                + self.get_component[2,2]*self.get_component[0,0]
-                - self.get_component[0,1]**2
-                - self.get_component[0,2]**2
-                - self.get_component[1,2]**2
+                self.get_component([0,0])*self.get_component([1,1])
+                + self.get_component([1,1])*self.get_component([2,2])
+                + self.get_component([2,2])*self.get_component([0,0])
+                - self.get_component([0,1])**2
+                - self.get_component([0,2])**2
+                - self.get_component([1,2])**2
             )
         elif n==3:
             output = (
-                self.get_component[0,0]*self.get_component[1,1]*self.get_component[2,2]
-                - self.get_component[0,0]*(self.get_component[1,2]**2)
-                - self.get_component[1,1]*(self.get_component[0,2]**2)
-                - self.get_component[2,2]*(self.get_component[0,1]**2)
-                + 2*self.get_component[0,1]*self.get_component[0,2]*self.get_component[1,2]
+                self.get_component([0,0])*self.get_component([1,1])*self.get_component([2,2])
+                - self.get_component([0,0])*(self.get_component([1,2])**2)
+                - self.get_component([1,1])*(self.get_component([0,2])**2)
+                - self.get_component([2,2])*(self.get_component([0,1])**2)
+                + 2*self.get_component([0,1])*self.get_component([0,2])*self.get_component([1,2])
             )
         else:
             output = None
 
-            return output
+        return output
 
