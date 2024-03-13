@@ -296,22 +296,24 @@ class SpatialData():
 
     def calculate_isotropic_elasticity(self,E: float,nu:float,strain_field:str)->None:
         
+        # Default is using plane stress assumptions.
         strain = self.data_fields[strain_field]
         #Calculate bulk and shear modulus
-        bulk_mod = E/(3*(1-(2*nu)))
-        shear_mod = E/(2*(1+nu))
+        a = E/(1-(nu**2))
+        g = E/(2*(1+nu))
 
-        strain_trace = strain.calculate_invariant(1)/3
+        strain_trace = strain.calculate_invariant(1)
+        #e_22 = (-nu/(1-nu))*(strain.get_component([0,0])+strain.get_component([1,1]))
 
-        s_11 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([0,0])-strain_trace)
-        s_12 = 2*shear_mod*(strain.get_component([0,1]))
-        s_13 = 2*shear_mod*(strain.get_component([0,2]))
-        s_21 = 2*shear_mod*(strain.get_component([1,0]))
-        s_22 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([1,1])-strain_trace)
-        s_23 = 2*shear_mod*(strain.get_component([1,2]))
-        s_31 = 2*shear_mod*(strain.get_component([2,0]))
-        s_32 = 2*shear_mod*(strain.get_component([2,1]))
-        s_33 = 3* bulk_mod*strain_trace + 2*shear_mod*(strain.get_component([2,2])-strain_trace)
+        s_11 = a*(strain.get_component([0,0])+nu*strain.get_component([1,1]))
+        s_12 = g*(strain.get_component([0,1]))
+        s_13 = 0*(strain.get_component([0,2]))
+        s_21 = g*(strain.get_component([1,0]))
+        s_22 = a*(strain.get_component([1,1])+nu*strain.get_component([0,0]))
+        s_23 = 0*(strain.get_component([1,2]))
+        s_31 = 0*(strain.get_component([2,0]))
+        s_32 = 0*(strain.get_component([2,1]))
+        s_33 = 0*(strain.get_component([2,2]))
 
         stress_tensor = np.squeeze(np.stack((s_11,s_12,s_13,s_21,s_22,s_23,s_31,s_32,s_33,),axis=1))
 
