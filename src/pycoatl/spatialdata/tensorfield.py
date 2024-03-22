@@ -3,6 +3,7 @@ import numpy as np
 import numpy.typing as npt
 from abc import ABC, abstractmethod
 from typing import Sequence
+from typing import Self
 
 
 class tensor_field_base(ABC):
@@ -31,7 +32,8 @@ class scalar_field(tensor_field_base):
         self.n_points = input_data.shape[0]
         self.n_steps = input_data.shape[2]
 
-    def get_component_field(self, time_step: int) -> npt.NDArray:
+    def get_component_field(self,component:int, time_step: int) -> npt.NDArray:
+        # N.B Component is unused.
         return self.data[...,time_step]
     
     def rotate(self, rotation_matrix: npt.NDArray) -> None:
@@ -158,8 +160,41 @@ class rank_two_field(tensor_field_base):
     def get_component(self, component: Sequence) -> npt.NDArray:
         return np.swapaxes(np.atleast_3d(self.data[:,3*component[0]+component[1],:]),1,2)
     
-    def get_principal(self):
-        pass
+    def get_principal(self)->Self:
+        """Get a rank_two_field with the principal strains
+
+        Returns:
+            Self: rank_two_field
+        """
+        #Presumes that plane stress or something has been run.
+        output_strains = np.zeros((self.n_points,9,self.n_steps))
+        for i in range(self.n_steps):
+            eigvals,eigvecs = np.linalg.eig(np.reshape(self.data[:,:,i],(-1,3,3)))
+            output_strains[:,::4,i] = eigvals
+        return rank_two_field(output_strains)
+    
+    def get_deviatoric(self)->Self:
+        """Return the deviatoric components of the tensor
+
+        Returns:
+            Self: _description_
+        """
+        hyd = self.calculate_invariant(1)/3
+        hyd_field = np.zeros_like(self.data)
+        hyd_field[:,::4,:] = hyd
+        return rank_two_field(self.data - hyd_field)
+
+
+    def assign_plane_stress(self,poisson_ratio:float)-> None:
+        """_summary_
+
+        Args:
+            poisson_ratio (float): _description_
+        """
+        # ezz = (-nu/(1-nu))*(exx + eyy)  
+        self.data[:,8,:] = (-poisson_ratio/(1-poisson_ratio))*(self.data[:,0,:]+self.data[:,4,:])
+
+
 
     def calculate_invariant(self,n:int)->npt.NDArray:
         """Calculate a given invariant of the tensor.
@@ -196,4 +231,17 @@ class rank_two_field(tensor_field_base):
             output = None
 
         return output
+    
+    @staticmethod
+    def inner_product_field(a: npt.NDArray,b: npt.NDArray) -> npt.NDArray: 
+        """Inner product between two tensor fields
+
+        Args:
+            a (npt.NDArray): Vector 1
+            b (npt.NDArray): Vector 2
+
+        Returns:
+            npt.NDArray: Scalar output
+        """
+        return np.sum(a*b,axis=1)
 

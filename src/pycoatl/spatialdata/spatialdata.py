@@ -298,6 +298,8 @@ class SpatialData():
         
         # Default is using plane stress assumptions.
         strain = self.data_fields[strain_field]
+        strain.assign_plane_stress(nu)
+        #self.data_fields['principal_strain'] = strain.get_principal()
         #Calculate bulk and shear modulus
         a = E/(1-(nu**2))
         g = E/(2*(1+nu))
@@ -320,7 +322,22 @@ class SpatialData():
         self.data_fields['stress'] = rank_two_field(stress_tensor) 
         self.metadata['stress_calculation'] = 'Isotropic Elasticity'
         self.metadata['Elastic Modulus'] = E
-        self.metadata['Poissons Ratio'] = nu       
+        self.metadata['Poissons Ratio'] = nu  
+    
+    def get_equivalent_strain(self,strain_field = 'total_strain')->None:
+        d = self.data_fields[strain_field].get_deviatoric()
+        vm_strain = np.sqrt((2/3)*d.inner_product_field(d.data,d.data)) 
+        self.data_fields['equiv_strain'] = scalar_field(np.expand_dims(vm_strain,1))
+
+    def get_equivalent_stress(self,stress_field = 'stress')->None:
+
+        try: 
+            d = self.data_fields[stress_field].get_deviatoric()
+            vm_stress = np.sqrt((3/2)*d.inner_product_field(d.data,d.data)) 
+            self.data_fields['equiv_stress'] = scalar_field(np.expand_dims(vm_stress,1))
+        except KeyError: 
+            print('Stress field not found. Please calculate the stress.')
+ 
 
     def plot(self,data_field='displacement',component=[1],time_step = -1 ,*args,**kwargs):
         """Use pyvista's built in methods to plot data
