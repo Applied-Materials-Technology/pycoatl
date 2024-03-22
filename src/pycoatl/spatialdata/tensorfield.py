@@ -16,6 +16,9 @@ class tensor_field_base(ABC):
     def get_component_field(self,component: Sequence,time_step: int)-> npt.NDArray:
         pass
 
+    def __add__(self,other):
+        return tensor_field_base(self.data+other.data)
+
     #@abstractmethod
     #def get_timestep(self,time_step: int)-> npt.NDArray:
     #    return self.data
@@ -38,6 +41,8 @@ class scalar_field(tensor_field_base):
     
     def rotate(self, rotation_matrix: npt.NDArray) -> None:
         print('No rotation applied. Scalar fields are rotation invariant.')
+
+
 
 
 class vector_field(tensor_field_base):
