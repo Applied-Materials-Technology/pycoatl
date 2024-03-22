@@ -5,7 +5,7 @@
 import numpy as np
 import pandas as pd
 import os
-
+from pathlib import Path
 
 def read_matchid(filename):
     """
@@ -323,6 +323,50 @@ def read_matchid_csv(filename):
         load = data[' Force_Logic [N]'].to_numpy()
     index = np.arange(len(time))
     return index, time, load
+
+def average_matchid_csv(filename: Path,group_size: int)->None:
+    """Read in a matchID Image.csv file and average it over
+    group size
+
+    Args:
+        filename (Path): Path to the file.
+        group_size (int): Number of averages to do.
+    """
+
+    data = pd.read_csv(filename,delimiter=';')
+    time = data['TimeStamp'].to_numpy()
+    file = data['File'].to_numpy()
+    
+    try:
+        load = data[' Force [N]'].to_numpy()
+    except:
+        load = data[' Force_Logic [N]'].to_numpy()
+    
+    new_file = filename.parent / 'Image_Avg_{}.csv'.format(group_size)
+    time_avg = np.mean(np.reshape(time,(-1,group_size)),axis=1)
+    load_avg = np.mean(np.reshape(load,(-1,group_size)),axis=1)
+    file_avg = file[::group_size]
+
+    with open(new_file,'w') as f:
+        f.write('File;TimeStamp; Force [V]; Force [N]\n')
+        for i in range(len(time_avg)):
+            f.write('{};{};{};{}\n'.format(file_avg[i],time_avg[i],0,load_avg[i]))
+
+def generate_moose_inputs(filename:Path)->None:
+    """Generate the moose text input files from a 
+    matchID Image.csv file.
+
+    Args:
+        filename (Path): Path to matchid Image.csv
+    """
+    
+    index, time, load = read_matchid_csv(filename)
+
+    new_file = filename.parent / 'Time_Load.csv'
+
+    with open(new_file,'w') as f:
+        for i in range(len(load)):
+            f.write('{},{}\n'.format(time[i],load[i]))
 
 
      
