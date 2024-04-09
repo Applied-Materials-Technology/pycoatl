@@ -42,10 +42,28 @@ def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
 
     else:
         # Rearrange to pyvista format
-        cells = np.concatenate((4*np.ones((connect.shape[1],1)),connect.T-1),axis=1).ravel().astype(int)
-        num_cells = connect.shape[1]
+        surface_nodes = np.unique(simdata.connect['connect1'])
+        con = np.arange(1,simdata.coords.shape[0]+1)
+        mapping_inv = []
+        for i in con:
+            if i in surface_nodes:
+                mapping_inv.append(np.where(surface_nodes==i)[0][0])
+            else:
+                mapping_inv.append(0)
+        mapping_inv = np.array(mapping_inv)
+        #cells = np.concatenate((4*np.ones((connect.shape[1],1)),connect.T-1),axis=1).ravel().astype(int)
+        #num_cells = connect.shape[1]
+        cells=[]
+        for i in range(connect.shape[1]):
+            con = connect.T[i].tolist()
+            vis_con = [x for x in con if x in surface_nodes]
+            if vis_con:
+                cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
+        num_cells = len(cells)
+        cells = np.array(cells).ravel()
+        
         #Coordinates
-        points = simdata.coords
+        points = simdata.coords[surface_nodes-1]
         #Cell types (all polygon)
     celltypes = np.full(num_cells,pv.CellType.POLYGON,dtype=np.uint8)
     grid = pv.UnstructuredGrid(cells,celltypes,points)
@@ -86,7 +104,7 @@ def simdata_to_spatialdata(simdata)->SpatialData:
     
     data_dict = {}
     for field in simdata.node_vars:
-        data_dict[field] = simdata.node_vars[field]
+        data_dict[field] = simdata.node_vars[field][surface_nodes]
 
     if x_symm:
         #Reflect mesh
