@@ -65,6 +65,9 @@ class SpatialData():
             mesh_field_name = data_field_name + str(component)
         output_mesh[mesh_field_name] = self.data_fields[data_field_name].get_component_field(component,time_step)
         return output_mesh
+    
+    def get_component_time(self,data_field_name: str,component: Sequence, time_step: int) -> NDArray:
+        return self.data_fields[data_field_name].get_component(component)[:,:,time_step]
 
     def __str__(self):
         """Make a nicely formatted string of metadata for use.
