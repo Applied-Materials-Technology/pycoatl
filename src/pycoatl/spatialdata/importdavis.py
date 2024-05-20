@@ -18,9 +18,9 @@ def return_mesh_davis(davis_dataframe):
         pvyista unstructured grid: Mesh of the davis coordinate data.
     """
     #Generate Coordinate arrays
-    x = davis_dataframe['x [mm]'].to_numpy()
-    y = davis_dataframe['y [mm]'].to_numpy()
-    z = davis_dataframe['z [mm]'].to_numpy()
+    x = davis_dataframe['x[mm]'].to_numpy()
+    y = davis_dataframe['y[mm]'].to_numpy()
+    z = davis_dataframe['z[mm]'].to_numpy()
     spacing = np.mean(np.diff(np.unique(np.round(y,5))))
     xc = np.round(x/spacing).astype(int)
     yc = np.round(y/spacing).astype(int)
@@ -77,7 +77,7 @@ def add_data_davis(unstructured_grid,davis_dataframe,fields):
             unstructured_grid.point_data[field] = davis_dataframe[field].to_numpy()
 
 
-def davis_to_spatialdata(folder_path,load_filename,fields=['X-displacement [mm]','Y-displacement [mm]','Z-displacement [mm]','Exx [S]','Eyy [S]','Exy [S]']):
+def davis_to_spatialdata(folder_path,load_filename,fields=['x-displacement[mm]','y-displacement[mm]','z-displacement[mm]','Transverse strain Exx - GL[S]','Axial strain Eyy - GL[S]','Shear strain Exy - GL[S]']):
     """Reads matchid data and converts to SpatialData format
     
 
@@ -121,14 +121,16 @@ def davis_to_spatialdata(folder_path,load_filename,fields=['X-displacement [mm]'
         current_grid.copy_from(initial_mesh)
         add_data_davis(current_grid,current_data,fields)
         #Rename fields 
-        current_grid.rename_array('X-displacement [mm]','u')
-        current_grid.rename_array('Y-displacement [mm]','v')
-        current_grid.rename_array('Z-displacement [mm]','w')
-        current_grid.rename_array('Exx [S]','exx')
-        current_grid.rename_array('Eyy [S]','eyy')
-        current_grid.rename_array('Exy [S]','exy')
+        current_grid.rename_array('x-displacement[mm]','u')
+        current_grid.rename_array('y-displacement[mm]','v')
+        current_grid.rename_array('z-displacement[mm]','w')
+        current_grid.rename_array('Transverse strain Exx - GL[S]','exx')
+        current_grid.rename_array('Axial strain Eyy - GL[S]','eyy')
+        current_grid.rename_array('Shear strain Exy - GL[S]','exy')
         data_sets.append(current_grid)
 
-    mb = SpatialData(data_sets,index,time,load,metadata)
+    #mb = SpatialData(data_sets,index,time,load,metadata)
+    
+    mb = SpatialData(initial_mesh,field_dict,metadata,index,time,load)
 
     return mb
