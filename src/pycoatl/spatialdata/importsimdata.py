@@ -138,39 +138,39 @@ def simdata_to_spatialdata(simdata)->SpatialData:
     else:
         displacement = np.stack((data_dict['disp_x'],data_dict['disp_y'],dummy),axis=1)
     
+
+    #Begin assigning data fields
+    data_fields = {'displacement'  :vector_field(displacement)} 
+
     #Assuming symmetric strain tensor
     tensor_components = ['xx','xy','xz','xy','yy','yz','xz','yz','zz']
-    #Elastic strain
-    elastic_stack = []
-    for comp in tensor_components:
-        if any('elastic_strain_'+comp in s for s in simdata.node_vars.keys()):
-            elastic_stack.append(data_dict['elastic_strain_'+comp])
-        else:
-            elastic_stack.append(dummy)
-    elastic_strains = np.stack(elastic_stack,axis=1)
-    #Plastic strain
-    plastic_stack = []
-    for comp in tensor_components:
-        if any('plastic_strain_'+comp in s for s in simdata.node_vars.keys()):
-            plastic_stack.append(data_dict['plastic_strain_'+comp])
-        else:
-            plastic_stack.append(dummy)
-    plastic_strains = np.stack(plastic_stack,axis=1)
-    #Stress
-    stress_stack = []
-    for comp in tensor_components:
-        if any('stress_'+comp in s for s in simdata.node_vars.keys()):
-            stress_stack.append(data_dict['stress_'+comp])
-        else:
-            stress_stack.append(dummy)
-    stresses = np.stack(stress_stack,axis=1)
+    
+    # Get the stress and strain components in the file
+    # Could be elastic, plastic, mechanical, stress or cauchy stress
 
+    stresses = []
+    strains = []
+    for key in simdata.node_vars.keys():
+        if 'stress_' in key:
+            stresses.append(key[:-3])
+        if 'strain_' in key:
+            strains.append(key[:-3])
+    stress_fields = np.unique(np.array(stresses))
+    strain_fields = np.unique(np.array(strains))
+    all_fields = np.concatenate((stress_fields,strain_fields))
+    
+    #Iterate over fields and add into the data_fields dict
 
-    data_fields = {'displacement'  :vector_field(displacement),
-                   'elastic_strain':rank_two_field(elastic_strains),
-                   'plastic_strain':rank_two_field(plastic_strains),
-                   'stress':rank_two_field(stresses)
-                   }
+    for a_field in all_fields:
+        stack = []
+        for comp in tensor_components:
+            if any(a_field+'_'+comp in s for s in simdata.node_vars.keys()):
+                stack.append(data_dict[a_field+'_'+comp])
+            else:
+                stack.append(dummy)
+        data_fields[a_field] = rank_two_field(np.stack(stack,axis=1))
+
+    
     mb = SpatialData(initial_mesh,data_fields,metadata,index,time,load)
 
     return mb
