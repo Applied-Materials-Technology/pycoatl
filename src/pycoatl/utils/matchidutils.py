@@ -317,10 +317,14 @@ def read_matchid_csv(filename):
     data = pd.read_csv(filename,delimiter=';')
     time = data['TimeStamp'].to_numpy()
     time = time-time[0] # rebase so image 0 is at t =0
-    try:
+
+    if ' Force [N]' in list[data]:
         load = data[' Force [N]'].to_numpy()
-    except:
+    elif ' Force_Logic [N]' in list[data]:
         load = data[' Force_Logic [N]'].to_numpy()
+    else:
+        load = np.zeros(len(time))
+    
     index = np.arange(len(time))
     return index, time, load
 
