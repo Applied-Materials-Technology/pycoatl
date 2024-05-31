@@ -84,7 +84,7 @@ def read_load_file_d(filename):
                      delimiter=r";", 
                      skiprows=2, 
                      names=['index','P'],
-                     usecols = [1,16]) 
+                     usecols = [1,2]) 
     data.head()
     df = data[~np.isnan(data['index'])]
     index = df['index'].to_numpy().astype(np.int32)
