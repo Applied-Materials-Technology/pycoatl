@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence
 from typing import Self
 
-
+# Possibly update to mandel / voigt formulation
 class tensor_field_base(ABC):
 
     @abstractmethod

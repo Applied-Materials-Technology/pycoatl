@@ -57,8 +57,9 @@ class SpatialData():
         Returns:
             pv.UnstructuredGrid: Mesh with attached data
         """
-        output_mesh = pv.UnstructuredGrid()
-        output_mesh.copy_from(self.mesh_data)
+        #output_mesh = pv.UnstructuredGrid()
+        #output_mesh.copy_from(self.mesh_data)
+        output_mesh = self.mesh_data.copy()
         if alias is not None:
             mesh_field_name = alias
         else:
