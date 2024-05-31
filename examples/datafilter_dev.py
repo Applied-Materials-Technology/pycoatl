@@ -33,7 +33,7 @@ best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_p
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 cur_best= simdata_to_spatialdata(all_sim_data)
-dic_data.align(cur_best,[0.6,1,1])
+#dic_data.align(cur_best,[0.6,1,1])
 
 # %%
 def interpolate_to_grid(data,spacing=0.2):
@@ -373,7 +373,7 @@ def windowed_strain_calculation(grid_mesh,u_int,v_int,window_size):
         for j in range(ind_data.shape[1]):
             # might be returning problems
             lowi = i-levels
-            ind_list.append(np.ravel(ind_data[i-levels:i+levels+1,j-levels:j+levels+1]))
+            ind_list.append(np.ravel(ind_data[max([0,i-levels]):min([ind_data.shape[0],i+levels+1]),max([0,j-levels]):min([ind_data.shape[1],j+levels+1])]))
 
     def L_Q4(x):
         return np.vstack((np.ones(x[0].shape),x[0],x[1],x[0]*x[1])).T
@@ -392,7 +392,7 @@ def windowed_strain_calculation(grid_mesh,u_int,v_int,window_size):
         xbasis = L_Q4(xdata[:,msk])
         ydata = ydata[msk,:]
 
-        if len(ydata)<1:#window_size**2:
+        if len(ydata) <2*window_size:#< window_size**2:#
             partial_dx = np.nan
             partial_dy = np.nan
         else:
@@ -438,7 +438,7 @@ def windowed_strain_calculation(grid_mesh,u_int,v_int,window_size):
     return exx, eyy, exy
 
 #%%
-grid_mesh,u_int,v_int = interpolate_to_grid(cur_best,0.2)
+#grid_mesh,u_int,v_int = interpolate_to_grid(cur_best,0.2)
 exx,eyy,exy = windowed_strain_calculation(grid_mesh,u_int,v_int,5)
 #%%
 #Make into spatial data object
@@ -460,20 +460,20 @@ mb = SpatialData(grid_mesh,data_fields,new_metadata,cur_best.index,cur_best.time
 grid_mesh['u'] = np.reshape(u_int,(-1,217))
 grid_mesh['eyy'] = eyy
 # %%
-plt.contourf(np.reshape(exx[:,-1],(25,100)))
+plt.contourf(np.reshape(eyy[:,10],(25,100)))
 #plt.contourf(v_int[:,:,-1])
 # %%
-window_size =3
+window_size =5
 time_steps = v_int.shape[2]
 ind_data = np.reshape(np.arange(v_int[:,:,0].size),(v_int.shape[0],v_int.shape[1]))
 ind_list = []
 levels = int((window_size -1)/2)
 for i in range(ind_data.shape[0]):
     for j in range(ind_data.shape[1]):
-        ind_list.append(np.ravel(ind_data[i-levels:i+levels+1,j-levels:j+levels+1]))
+        ind_list.append(np.ravel(ind_data[max([0,i-levels]):min([ind_data.shape[0],i+levels+1]),max([0,j-levels]):min([ind_data.shape[1],j+levels+1])]))
 
 #%%
-point=540
+point=1
 neighbours = ind_list[point]
 print(neighbours)
 point_data = grid_mesh.points[neighbours]
@@ -491,7 +491,23 @@ print(np.ravel(y)[point])
 print(np.reshape(u_int,(-1,217))[point,-1])
 print(np.reshape(np.swapaxes(u_int,0,1),(-1,217))[point,-1])
 # %%
-filter = FastFilterRegularGrid(0.2,5)
+filter = FastFilterRegularGrid(0.2,5,exclude_limit=10)
 filtered_data = filter.run_filter(cur_best)
 filtered_data.plot('filtered_strain',[1,1],-1)
+# %%
+curp = Path('/home/rspencer/pyfemop/examples/run/sim-workdir-1/moose-4_out.e')
+exodus_reader = ExodusReader(Path(curp))
+all_sim_data = exodus_reader.read_all_sim_data()
+cur= simdata_to_spatialdata(all_sim_data)
+
+# %%
+filter = FastFilterRegularGrid(0.1,5,exclude_limit=0)
+filtered_data = filter.run_filter(cur)
+filtered_data.plot('filtered_strain',[1,1],-1)
+# %%
+g,u,v = FastFilterRegularGrid.interpolate_to_grid(cur,0.1,0)
+plt.contourf(u[:,:,-1])
+# %%
+grid_mesh,u_int,v_int = FastFilterRegularGrid.interpolate_to_grid(cur_best,0.2,10)
+plt.contourf(u_int[:,:,-1])
 # %%

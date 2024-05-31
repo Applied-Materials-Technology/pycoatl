@@ -26,11 +26,12 @@ class DataFilterBase(ABC):
 
 class FastFilterRegularGrid(DataFilterBase):
     
-    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'log-euler-almansi'):
+    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'log-euler-almansi', exclude_limit = 30):
         
         self._grid_spacing = grid_spacing
         self._window_size = 5
         self._strain_tensor = strain_tensor
+        self._exclude_limit = exclude_limit
 
         self.available_tensors = {'log-euler-almansi':FastFilterRegularGrid.euler_almansi}
     
@@ -68,7 +69,7 @@ class FastFilterRegularGrid(DataFilterBase):
         return xp[m], yp[m]
 
     @staticmethod
-    def interpolate_to_grid(fe_data : SpatialData,spacing : float):
+    def interpolate_to_grid(fe_data : SpatialData,spacing : float, exclude_limit: float):
         """Interpolate the FE data onto a regular grid with spacing.
 
         Args:
@@ -86,19 +87,33 @@ class FastFilterRegularGrid(DataFilterBase):
         zr = bounds[5]
         x,y = np.meshgrid(xr,yr,indexing='ij')
         # Add Nans to the array for outline the edges of the specimen
-
-        xp,yp = FastFilterRegularGrid.excluding_mesh(fe_data.mesh_data.points[:,0], fe_data.mesh_data.points[:,1], nx=10, ny=10)
-        zp = np.nan + np.zeros_like(xp)
-        points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0],xp], np.r_[fe_data.mesh_data.points[:,1],yp])))
-
-        tri = Delaunay(points)
-        u_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
-        v_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
-        for i in range(fe_data.n_steps):
-            zu = fe_data.data_fields['displacement'].data[:,0,i]
-            zv = fe_data.data_fields['displacement'].data[:,1,i]
-            u_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu,zp])(x,y)
-            v_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv,zp])(x,y)
+        
+        if exclude_limit >0:
+            xp,yp = FastFilterRegularGrid.excluding_mesh(fe_data.mesh_data.points[:,0], fe_data.mesh_data.points[:,1], nx=exclude_limit, ny=exclude_limit)
+            zp = np.nan + np.zeros_like(xp)
+            points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0],xp], np.r_[fe_data.mesh_data.points[:,1],yp])))
+        
+            tri = Delaunay(points)
+            u_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
+            v_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
+            for i in range(fe_data.n_steps):
+                zu = fe_data.data_fields['displacement'].data[:,0,i]
+                zv = fe_data.data_fields['displacement'].data[:,1,i]
+                u_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu,zp])(x,y)
+                v_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv,zp])(x,y)
+        
+        else: # Don't use excluding mesh approach
+            points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0]], np.r_[fe_data.mesh_data.points[:,1]])))
+        
+            tri = Delaunay(points)
+            u_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
+            v_int = np.empty((x.shape[0],x.shape[1],fe_data.n_steps))
+            for i in range(fe_data.n_steps):
+                zu = fe_data.data_fields['displacement'].data[:,0,i]
+                zv = fe_data.data_fields['displacement'].data[:,1,i]
+                u_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu])(x,y)
+                v_int[:,:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv])(x,y)
+ 
 
         # Create pyvista mesh 
         x,y,z = np.meshgrid(xr,yr,zr)
@@ -129,13 +144,12 @@ class FastFilterRegularGrid(DataFilterBase):
         xbasis = FastFilterRegularGrid.L_Q4(xdata)
         ydata = data
 
-        if len(ydata)<1:#window_size**2:
+        if len(ydata)<np.power(window_size-2,2):#window_size**2:
             partial_dx = np.nan
             partial_dy = np.nan
         else:
             paramsQ4, r, rank, s = np.linalg.lstsq(xbasis, ydata)
-                
-            #px = xdata[:,int(round((window_size**2) /2))]
+
             px = xdata[:,int(round((len(ydata)) /2))]
             partial_dx = paramsQ4[1] + paramsQ4[3]*px[1]
             partial_dy = paramsQ4[2] + paramsQ4[3]*px[0]
@@ -152,10 +166,7 @@ class FastFilterRegularGrid(DataFilterBase):
         levels = int((window_size -1)/2)
         for i in range(ind_data.shape[0]):
             for j in range(ind_data.shape[1]):
-                ind_list.append(np.ravel(ind_data[i-levels:i+levels+1,j-levels:j+levels+1]))
-
-
-
+                ind_list.append(np.ravel(ind_data[max([0,i-levels]):min([ind_data.shape[0],i+levels+1]),max([0,j-levels]):min([ind_data.shape[1],j+levels+1])]))
 
         dudx = np.empty((grid_mesh.n_points,v_int.shape[2]))
         dvdx = np.empty((grid_mesh.n_points,v_int.shape[2]))
@@ -179,7 +190,7 @@ class FastFilterRegularGrid(DataFilterBase):
     def run_filter(self,data : SpatialData)-> SpatialData:
        
         # Interpolate the data to the new grid       
-        grid_mesh,u_int,v_int = FastFilterRegularGrid.interpolate_to_grid(data,self._grid_spacing)
+        grid_mesh,u_int,v_int = FastFilterRegularGrid.interpolate_to_grid(data,self._grid_spacing,self._exclude_limit)
         
         # Perform the windowed strain calculation
         # Only Q4 for now
