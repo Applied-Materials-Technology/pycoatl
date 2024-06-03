@@ -304,8 +304,12 @@ z = cur_best.data_fields['displacement'].data[:,1,-1]
 tri = Delaunay(points)
 #test_int = interpolate.CloughTocher2DInterpolator(tri,np.r_[z,zp],tol=1)
 test_int = interpolate.LinearNDInterpolator(tri,np.r_[z,zp])
+test_int = interpolate.griddata((np.r_[cur_best.mesh_data.points[:,0],xp], np.r_[cur_best.mesh_data.points[:,1],yp]),np.r_[z,zp],(x,y),'linear')
+test_int = interpolate.griddata((np.r_[cur_best.mesh_data.points[:,0]], np.r_[cur_best.mesh_data.points[:,1]]),np.r_[z],(x,y),'cubic')
+
 #test_int[mask] = np.nan
-plt.contourf(x,y,np.squeeze(test_int(x,y)))
+#plt.contourf(x,y,np.squeeze(test_int(x,y)))
+plt.contourf(x,y,test_int)
 # Need a way to mask out the non-data parts. 
 # Maybe dig out the KDTree code? 
 # %%
