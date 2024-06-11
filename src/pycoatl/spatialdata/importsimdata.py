@@ -113,7 +113,7 @@ def simdata_to_spatialdata(simdata)->SpatialData:
         overlap= initial_mesh.points[:,0]==initial_mesh_ref_x.points[:,0]
 
         for field in data_dict:
-            if field == 'disp_x':
+            if field == 'disp_x' or '_xy' in field:
                 data_dict[field] = np.concatenate((data_dict[field],-1*data_dict[field][~overlap]))
             else:
                 data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))
@@ -126,7 +126,7 @@ def simdata_to_spatialdata(simdata)->SpatialData:
         overlap= initial_mesh.points[:,1]==initial_mesh_ref_y.points[:,1]
 
         for field in data_dict:
-            if field == 'disp_y':
+            if field == 'disp_y' or '_xy' in field:
                 data_dict[field] = np.concatenate((data_dict[field],-1*data_dict[field][~overlap]))
             else:
                 data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))

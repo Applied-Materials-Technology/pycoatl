@@ -26,7 +26,7 @@ class DataFilterBase(ABC):
 
 class FastFilterRegularGrid(DataFilterBase):
     
-    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'log-euler-almansi', exclude_limit = 30):
+    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'euler', exclude_limit = 30):
         
         self._grid_spacing = grid_spacing
         self._window_size = 5
@@ -47,6 +47,17 @@ class FastFilterRegularGrid(DataFilterBase):
         eyy = np.log(np.sqrt(1 + 2*dvdy + dvdx**2 + dvdy**2))
         #exy = 0.5*(dudy + dvdx) - 0.5*((dudx*dudy)+(dvdx*dvdy))
         exy = dvdx*(1+dudx) + dudy*(1+dvdy)
+        return exx,eyy,exy
+    
+    @staticmethod
+    def small_strain(dudx,dudy,dvdx,dvdy):
+        """
+        Calculates the Euler-Almansi strain tensor from the given gradient data.
+        Can implement more in future.
+        """
+        exx = dudx
+        eyy = dvdy
+        exy = 0.5*(dudy + dvdx)
         return exx,eyy,exy
     
     @staticmethod
@@ -184,8 +195,7 @@ class FastFilterRegularGrid(DataFilterBase):
             dudx[point,:],dudy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,u,window_size)
             dvdx[point,:],dvdy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,v,window_size)
 
-        exx,eyy,exy = FastFilterRegularGrid.euler_almansi(dudx,dudy,dvdx,dvdy)
-        return exx, eyy, exy
+        return dudx,dudy,dvdx,dvdy
     
     def run_filter(self,data : SpatialData)-> SpatialData:
        
@@ -194,7 +204,7 @@ class FastFilterRegularGrid(DataFilterBase):
         
         # Perform the windowed strain calculation
         # Only Q4 for now
-        exx,eyy,exy = FastFilterRegularGrid.windowed_strain_calculation(grid_mesh,u_int,v_int,self._window_size)
+        dudx,dudy,dvdx,dvdy = FastFilterRegularGrid.windowed_strain_calculation(grid_mesh,u_int,v_int,self._window_size)
 
         # Crate new SpatialData instance to return
         time_steps = u_int.shape[2]
@@ -203,6 +213,14 @@ class FastFilterRegularGrid(DataFilterBase):
         dummy = np.zeros_like(u_r)
         displacement = np.stack((u_r,v_r,dummy),axis=1)
         data_fields = {'displacement'  :vector_field(displacement)} 
+
+
+        # Apply strain tensor 
+        if self._strain_tensor == 'euler':
+            exx,eyy,exy = FastFilterRegularGrid.euler_almansi(dudx,dudy,dvdx,dvdy)
+        elif self._strain_tensor == 'small':
+            exx,eyy,exy = FastFilterRegularGrid.small_strain(dudx,dudy,dvdx,dvdy)
+
         strains =np.stack((exx,exy,dummy,exy,eyy,dummy,dummy,dummy,dummy),axis=1)
         data_fields['filtered_strain'] = rank_two_field(strains)
         new_metadata = data.metadata
