@@ -81,6 +81,9 @@ class vector_field(tensor_field_base):
     def get_component_field(self, component: int, time_step: int) -> npt.NDArray:
         return self.data[:,component,time_step]
     
+    def get_component(self, component: int) -> npt.NDArray:
+        return self.data[:,component,:]
+    
     def get_fields(self, component: list[int])->list[npt.NDArray]:
         """Get component fields over all time.
         Intended to be used in differentiations.

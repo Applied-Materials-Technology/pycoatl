@@ -40,7 +40,7 @@ def return_mesh_matchid(matchid_dataframe: pd.DataFrame,version: str) -> pv.Unst
 
     for i in range(len(xc)):
         
-        points.append([x[i],-y[i],z[i]])
+        points.append([x[i],-y[i],-z[i]])
         cand_x = xc[i]
         cand_y = yc[i]
 

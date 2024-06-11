@@ -318,9 +318,9 @@ def read_matchid_csv(filename):
     time = data['TimeStamp'].to_numpy()
     time = time-time[0] # rebase so image 0 is at t =0
 
-    if ' Force [N]' in list[data]:
+    if ' Force [N]' in data.columns:
         load = data[' Force [N]'].to_numpy()
-    elif ' Force_Logic [N]' in list[data]:
+    elif ' Force_Logic [N]' in data.columns:
         load = data[' Force_Logic [N]'].to_numpy()
     else:
         load = np.zeros(len(time))
