@@ -195,7 +195,7 @@ class FastFilterRegularGrid(DataFilterBase):
             dudx[point,:],dudy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,u,window_size)
             dvdx[point,:],dvdy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,v,window_size)
 
-        return dudx,dudy,dvdx,dvdy
+        return dudx,dudy,dvdx,-dvdy
     
     def run_filter(self,data : SpatialData)-> SpatialData:
        
@@ -221,7 +221,7 @@ class FastFilterRegularGrid(DataFilterBase):
         elif self._strain_tensor == 'small':
             exx,eyy,exy = FastFilterRegularGrid.small_strain(dudx,dudy,dvdx,dvdy)
 
-        strains =np.stack((exx,exy,dummy,exy,eyy,dummy,dummy,dummy,dummy),axis=1)
+        strains =np.stack((exx,exy/2,dummy,exy/2,eyy,dummy,dummy,dummy,dummy),axis=1)
         data_fields['filtered_strain'] = rank_two_field(strains)
         new_metadata = data.metadata
         new_metadata['transformations'] = {'filter' : 'fast','spacing' : self._grid_spacing, 'window_size': self._window_size, 'order' : 'Q4'}
