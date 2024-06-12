@@ -38,7 +38,7 @@ class FastFilterRegularGrid(DataFilterBase):
     @staticmethod
     def euler_almansi(dudx,dudy,dvdx,dvdy):
         """
-        Calculates the Euler-Almansi strain tensor from the given gradient data.
+        Calculates the logarithmic Euler-Almansi strain tensor from the given gradient data.
         Can implement more in future.
         """
         #exx = dudx - 0.5*(dudx**2+dvdx**2)
@@ -46,8 +46,22 @@ class FastFilterRegularGrid(DataFilterBase):
         #eyy = dvdy - 0.5*(dvdy**2+dudy**2)
         eyy = np.log(np.sqrt(1 + 2*dvdy + dvdx**2 + dvdy**2))
         #exy = 0.5*(dudy + dvdx) - 0.5*((dudx*dudy)+(dvdx*dvdy))
-        exy = dvdx*(1+dudx) + dudy*(1+dvdy)
+        exy = np.log(dvdx*(1+dudx) + dudy*(1+dvdy))
         return exx,eyy,exy
+    
+    @staticmethod
+    def hencky(dudx,dudy,dvdx,dvdy):
+        """
+        Calculates the Euler-Almansi strain tensor from the given gradient data.
+        Can implement more in future.
+        """
+        #exx = dudx - 0.5*(dudx**2+dvdx**2)
+        exx = np.log(np.sqrt(1 + 2*dudx + dudx**2 + dvdx**2))
+        #eyy = dvdy - 0.5*(dvdy**2+dudy**2)
+        eyy = np.log(np.sqrt(1 + 2*dvdy + dudy**2 + dvdy**2))
+        #exy = 0.5*(dudy + dvdx) - 0.5*((dudx*dudy)+(dvdx*dvdy))
+        exy = np.log(dudy*(1+dudx) + dvdx*(1+dvdy))
+        return exx,eyy,exy   
     
     @staticmethod
     def small_strain(dudx,dudy,dvdx,dvdy):
@@ -220,7 +234,9 @@ class FastFilterRegularGrid(DataFilterBase):
             exx,eyy,exy = FastFilterRegularGrid.euler_almansi(dudx,dudy,dvdx,dvdy)
         elif self._strain_tensor == 'small':
             exx,eyy,exy = FastFilterRegularGrid.small_strain(dudx,dudy,dvdx,dvdy)
-
+        elif self._strain_tensor == 'hencky':
+            exx,eyy,exy = FastFilterRegularGrid.hencky(dudx,dudy,dvdx,dvdy)
+            
         strains =np.stack((exx,exy,dummy,exy,eyy,dummy,dummy,dummy,dummy),axis=1)
         data_fields['filtered_strain'] = rank_two_field(strains)
         new_metadata = data.metadata
