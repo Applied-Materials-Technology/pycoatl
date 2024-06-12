@@ -32,7 +32,7 @@ best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_p
 
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
-test2 = return_mesh_simdata(all_sim_data,dim3=False)
+#test2 = return_mesh_simdata(all_sim_data,dim3=False)
 cur_best= simdata_to_spatialdata(all_sim_data)
 #dic_data.align(cur_best,[0.6,1,1])
 
