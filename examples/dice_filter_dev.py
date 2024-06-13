@@ -24,6 +24,8 @@ from pyvale.imagesim.imagedefopts import ImageDefOpts
 from pyvale.imagesim.cameradata import CameraData
 import pyvale.imagesim.imagedef as sid
 
+import xml.etree.ElementTree as ET
+
 #%%
 # Copying over code from LLoyd's examples in pyvale
 
@@ -143,6 +145,33 @@ print(vars(camera))
 print('-'*80)
 print('')
 #%%
+(masked_im,image_mask) = sid.get_im_mask_from_sim(camera,
+                        sid.rectangle_crop_image(camera,input_im),
+                        coords)
+#%% For geometries without holes
+
+border_size = 10
+y = []
+x_min = []
+x_max = []
+for j in range(0,image_mask.shape[0],20):
+    edge = np.where(image_mask[j,:]==1)
+    try: 
+        x_min.append(edge[0][0]+border_size)
+        x_max.append(edge[0][-1]-border_size)
+        y.append(j)
+    except IndexError:
+        continue
+
+y_roi = np.concatenate((np.flip(np.array(y)),np.array(y)))
+x_roi = np.concatenate((np.array(x_min),np.flip(np.array(x_max))))
+plt.plot(x_roi,y_roi)
+#%%
+for i in range(len(x_roi)): 
+    print('{} {}'.format(x_roi[i],y_roi[i]))
+#%%
+
+#%%
 #---------------------------------------------------------------------------
 # PRE-PROCESS AND DEFORM IMAGES
 sid.deform_images(input_im,
@@ -159,12 +188,157 @@ all_sim_data = exodus_reader.read_all_sim_data()
 
 fig = plt.figure()
 ax = fig.add_subplot()
-ax.scatter(all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px -2.5,-(all_sim_data.node_vars['COORDINATE_Y'][:,0]*camera.m_per_px -10),c=all_sim_data.node_vars['VSG_STRAIN_YY'][:,1],vmax=5E-4,vmin=0)
+ax.scatter(all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px -2.5,-(all_sim_data.node_vars['COORDINATE_Y'][:,0]*camera.m_per_px -10),c=all_sim_data.node_vars['VSG_STRAIN_YY'][:,1])
+#ax.scatter(all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px -2.5,-(all_sim_data.node_vars['COORDINATE_Y'][:,0]*camera.m_per_px -10),c=all_sim_data.node_vars['VSG_STRAIN_YY'][:,1],vmax=5E-4,vmin=0)
 #ax.scatter(coords[:,0],coords[:,1])
 ax.axis('equal')
 
 # %%
-plt.hist(all_sim_data.node_vars['VSG_STRAIN_YY'][:,1],bins=100,range=(0,1E-2))
+plt.hist(all_sim_data.node_vars['VSG_STRAIN_XY'][:,1],bins=100,range=(0,1E-2))
 # %%
 plt.hist(all_sim_data.node_vars['elastic_strain_yy'][:,-1]+all_sim_data.node_vars['plastic_strain_yy'][:,-1],bins=100,range=(0,1E-2))
 # %%
+xc = all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px-camera._roi_loc[0]
+yc = -all_sim_data.node_vars['COORDINATE_Y'][:,0]*camera.m_per_px-camera._roi_loc[1]
+zc = np.zeros(len(xc))
+points = np.vstack((xc,yc,zc))
+print(points.shape)
+test=pv.PolyData(points.T)
+test['strain_yy'] = all_sim_data.node_vars['VSG_STRAIN_YY']
+#%% Parameters needed
+input_file_name = Path('/home/rspencer/pycoatl/examples/ImDef/input.xml')
+mod_file_name = input_file_name.parent /'input_mod.xml'
+deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
+subset_file = Path('subsets.txt')
+output_folder = input_file_name.parent /'results'
+cor_param_file = Path('params.xml')
+
+#%% 
+tree = ET.parse('/home/rspencer/pycoatl/examples/ImDef/input.xml')
+root = tree.getroot()
+
+# %%
+for child in root:
+    print(child.tag, child.attrib)
+# %%
+ET.Element('ParameterList')
+# %%
+print(root.findall("."))
+print(root.find(".//*[@name='image_folder']").set('value','test'))
+print(root.find(".//*[@name='image_folder']").attrib)
+# %% Create XML
+# Remove any deformed images files
+print(root.find('ParameterList').attrib)
+def_ims = root.find(".//*[@name='deformed_images']")
+for child in def_ims:
+    #def_ims.remove(child)
+    print(child.attrib)
+
+# %% Get list of files.
+files = []
+im_folder = deformed_images.parent
+for p in deformed_images.iterdir():
+    files.append(p.name)
+
+files.sort()
+print(files)
+
+# Modify xml
+root.find(".//*[@name='image_folder']").set('value',str(im_folder))
+
+def_ims = root.find(".//*[@name='deformed_images']")
+for child in def_ims:
+    def_ims.remove(child)
+    print(child.attrib)
+def_ims = root.find(".//*[@name='deformed_images']")
+
+for file in files[1:]:
+    attributes = {'name':str(file),'type':'bool','value':'true'}
+    el = ET.SubElement(def_ims,'Parameter',attributes)
+
+# %%
+def_ims = root.find(".//*[@name='deformed_images']")
+for child in def_ims:
+    #def_ims.remove(child)
+    print(child.attrib)
+# %%
+# Define necessary inputs
+input_file_name = Path('/home/rspencer/pycoatl/examples/ImDef/input.xml')
+mod_file_name = input_file_name.parent /'input_mod.xml'
+deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
+subset_file =  input_file_name.parent /'subsets_roi.txt'
+output_folder = input_file_name.parent /'results'
+#cor_param_file = Path('params.xml')
+#image_folder = deformed_images.parent
+
+# Read current input file 
+tree = ET.parse(input_file_name)
+root = tree.getroot()
+
+# Clear any existing deformed image paths
+parent = root.find(".//*[@name='deformed_images']")
+for child in parent.findall('./'):
+    parent.remove(child)
+
+# Read in deformed image paths, assumption is 0 is the reference
+files = []
+im_folder = deformed_images.parent
+for p in deformed_images.iterdir():
+    files.append(p.name)
+
+files.sort()
+
+# Update the subsets file
+root.find(".//*[@name='subset_file']").set('value',str(subset_file))
+
+# Update the image folder
+root.find(".//*[@name='image_folder']").set('value',str(deformed_images)+'/')
+
+# Update the reference image path
+root.find(".//*[@name='reference_image']").set('value',str(files[0]))
+
+# Update the deformed image path list
+for file in files[1:]:
+    attributes = {'name':str(file),'type':'bool','value':'true'}
+    el = ET.SubElement(parent,'Parameter',attributes)
+
+
+
+# Write modified XML to file
+tree.write(mod_file_name)
+
+# %% Write a subsets.txt file with ROI
+
+# Fow now, non-hole specimens
+
+with open(subset_file,'w') as f:
+    f.write('BEGIN REGION_OF_INTEREST\n')
+    f.write('  BEGIN BOUNDARY\n')
+    f.write('    BEGIN POLYGON\n')
+    f.write('      BEGIN VERTICES\n')
+    
+    for i in range(len(x_roi)):
+        f.write('      {} {}\n'.format(x_roi[i],y_roi[i]))
+
+    f.write('      END VERTICES\n')
+    f.write('    END POLYGON\n')
+    f.write('  END BOUNDARY\n')
+    f.write('END REGION_OF_INTEREST\n')
+#%% General form of the DICe filter
+
+# All input information
+
+
+# Step 1: Read a default XML file to get some information
+# Need the step size to apply to ROI size.
+
+# Step 2: Image deformation, get image mask, 
+# Possibility to store image mask if it's being used repeatedly
+# as that can be the time consuming bit
+
+# Step 3: Modify DICe input files
+
+# Step 4: Run DICe
+
+# Step 5: Read in results, push to spatial data format
+
