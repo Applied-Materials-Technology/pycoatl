@@ -29,7 +29,7 @@ class FastFilterRegularGrid(DataFilterBase):
     def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'euler', exclude_limit = 30):
         
         self._grid_spacing = grid_spacing
-        self._window_size = 5
+        self._window_size = window_size
         self._strain_tensor = strain_tensor
         self._exclude_limit = exclude_limit
 
