@@ -10,22 +10,25 @@ import matplotlib.pyplot as plt
 
 from pycoatl.spatialdata.importmatchid import matchid_to_spatialdata
 from pycoatl.spatialdata.importsimdata import simdata_to_spatialdata
-from pycoatl.spatialdata.importsimdata import return_mesh_simdata
+from pycoatl.spatialdata.importdicedata import simdata_dice_to_spatialdata
 from pycoatl.spatialdata.tensorfield import rank_two_field
 from pycoatl.spatialdata.tensorfield import vector_field
+from pycoatl.datafilters.datafilters import DataFilterBase
 
 from scipy.spatial import cKDTree as KDTree
 from scipy.spatial import Delaunay
 from scipy import interpolate
 from pycoatl.datafilters.datafilters import FastFilterRegularGrid
-
+from typing import Sequence
 
 from pyvale.imagesim.imagedefopts import ImageDefOpts
 from pyvale.imagesim.cameradata import CameraData
 import pyvale.imagesim.imagedef as sid
 
 import xml.etree.ElementTree as ET
-
+from dataclasses import dataclass
+import subprocess
+import time
 #%%
 # Copying over code from LLoyd's examples in pyvale
 
@@ -192,7 +195,9 @@ ax.scatter(all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px -2.5,-(al
 #ax.scatter(all_sim_data.node_vars['COORDINATE_X'][:,0]*camera.m_per_px -2.5,-(all_sim_data.node_vars['COORDINATE_Y'][:,0]*camera.m_per_px -10),c=all_sim_data.node_vars['VSG_STRAIN_YY'][:,1],vmax=5E-4,vmin=0)
 #ax.scatter(coords[:,0],coords[:,1])
 ax.axis('equal')
-
+#%%
+test = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
+test.plot('displacement',1,-2)
 # %%
 plt.hist(all_sim_data.node_vars['VSG_STRAIN_XY'][:,1],bins=100,range=(0,1E-2))
 # %%
@@ -324,21 +329,384 @@ with open(subset_file,'w') as f:
     f.write('    END POLYGON\n')
     f.write('  END BOUNDARY\n')
     f.write('END REGION_OF_INTEREST\n')
+    
+#%% DICe opts class
+
+@dataclass
+class DiceOpts:
+     
+    # DICe Input file (xml)
+    dice_input_file: Path
+
+    # Modified DICe input path
+    mod_file_name: Path 
+    
+    # Deformed image location
+    deformed_images: Path
+
+    # Subset file
+    subset_file: Path 
+    
+    # Output file
+    output_folder: Path
+
+class DiceManager:
+
+    def __init__(self,dice_opts):
+
+        self.dice_opts = dice_opts
+    
+    def read_step_size(self) -> int:
+        """Read the step size from the input file.
+
+        Returns:
+            int: Step size in px.
+        """
+        tree = ET.parse(self.dice_opts.dice_input_file)
+        root = tree.getroot()
+        step_size = int(root.find(".//*[@name='step_size']").attrib['value'])
+        return step_size
+    
+    def update_input_file(self)->None:
+        """Update the input file to remove any existing deformed images
+        then add in the current reference and deformed images.
+        """
+        # Read current input file 
+        tree = ET.parse(self.dice_opts.dice_input_file)
+        root = tree.getroot()
+
+        # Clear any existing deformed image paths
+        parent = root.find(".//*[@name='deformed_images']")
+        for child in parent.findall('./'):
+            parent.remove(child)
+
+        # Read in deformed image paths, assumption is 0 is the reference
+        files = []
+        for p in deformed_images.iterdir():
+            files.append(p.name)
+
+        files.sort()
+
+        # Update the subsets file
+        root.find(".//*[@name='subset_file']").set('value',str(self.dice_opts.subset_file))
+
+        # Update the image folder
+        root.find(".//*[@name='image_folder']").set('value',str(self.dice_opts.deformed_images)+'/')
+
+        # Update the reference image path
+        root.find(".//*[@name='reference_image']").set('value',str(files[0]))
+
+        # Update the deformed image path list
+        for file in files[1:]:
+            attributes = {'name':str(file),'type':'bool','value':'true'}
+            el = ET.SubElement(parent,'Parameter',attributes)
+
+        # Write modified XML to file
+        tree.write(self.dice_opts.mod_file_name)
+
+    def write_subsets_file(self,x_roi:NDArray[int],y_roi:NDArray[int])->None:
+        """Writes the subsets.txt file using the polygon defined by 
+        x_roi, y_roi. These should be defined such that they form a 
+        path around the ROI. 
+
+        Args:
+            x_roi (NDArray[np.int]): X pixel locations
+            y_roi (NDArray[np.int]): Y pixel locations
+        """
+
+        # Fow now, non-hole specimens
+        with open(self.dice_opts.subset_file,'w') as f:
+            f.write('BEGIN REGION_OF_INTEREST\n')
+            f.write('  BEGIN BOUNDARY\n')
+            f.write('    BEGIN POLYGON\n')
+            f.write('      BEGIN VERTICES\n')
+            
+            for i in range(len(x_roi)):
+                f.write('      {} {}\n'.format(x_roi[i],y_roi[i]))
+
+            f.write('      END VERTICES\n')
+            f.write('    END POLYGON\n')
+            f.write('  END BOUNDARY\n')
+            f.write('END REGION_OF_INTEREST\n')
+
+    def run(self)->Path:
+        """Run DICe using the options provided.
+
+
+        Returns:
+            Path: Path to the exodus file created by DICe
+        """
+
+        results_path = self.dice_opts.output_folder / 'DICe_solution.e'
+        
+        args = ['dice','-i', str(self.dice_opts.mod_file_name)]
+        subprocess.run(args,shell=False,cwd=str(self.dice_opts.mod_file_name.parent))
+
+        return results_path
+
+#%%
+dice_opts= DiceOpts(input_file_name,
+                    mod_file_name,
+                    deformed_images,
+                    subset_file,
+                    output_folder)
+dm = DiceManager(dice_opts)
+
+print(dm.read_step_size())
+dm.run()
+#dm.update_input_file()
 #%% General form of the DICe filter
 
 # All input information
+# Data filter will recieve a SpatialData object
+# Option to save imasge mask and reuse
+# Option to add noise to images
+# Image deformation settings
+base_image = Path('/home/rspencer/projects/pyvale/data/speckleimages/OptimisedSpeckle_2464_2056_width5.0_8bit_GBlur1.tiff')
+fe_data = cur_best # Data to use
+image_def_opts = id_opts # Im def options
+camera_opts = camera # Camera options
+retain_image_mask = True # For multiples of the same design
 
+# DICe Settings
+input_file_name = Path('/home/rspencer/pycoatl/examples/ImDef/input.xml')
+mod_file_name = input_file_name.parent /'input_mod.xml'
+deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
+subset_file =  input_file_name.parent /'subsets_roi.txt'
+output_folder = input_file_name.parent /'results'
 
+dice_opts= DiceOpts(input_file_name,
+                    mod_file_name,
+                    deformed_images,
+                    subset_file,
+                    output_folder)
+dm = DiceManager(dice_opts)
+
+#%%
+
+class DiceFilter(DataFilterBase):
+
+    def __init__(self,
+                 base_image_path: Path,
+                 image_def_opts: ImageDefOpts,
+                 camera_opts:CameraData,
+                 dice_opts: DiceOpts,
+                 time_steps: list[int])-> None:
+        
+        self.base_image_path = base_image_path
+        self.image_def_opts = image_def_opts
+        self.camera_opts = camera_opts
+        self.dic_opts = dice_opts
+        self.time_steps = time_steps
+
+        self.dice_manager = DiceManager(dice_opts)
+
+        # Configure everything
+        self.step_size = self.dice_manager.read_step_size()
+        self.image_mask = None
+    
+    def create_roi_polygon(self,image_mask : NDArray[bool],spacing=20,step_size=10) -> NDArray[np.float64]:
+        """ Creates coordinates in pixel space for masking out the ROI in DICe
+        Applys a border of 1 step size + 1px for limit edge subsets.
+        Only works for solid (no-hole) designs.
+
+        Args:
+            image_mask (NDArray[np.bool]): Boolean image mask from image deformation
+            spacing (int, optional): Spacing used when stepping over the mask. Default is 20.
+            step_size (int, optional): Step size used in DICE. Defaults to 10.
+
+        Returns:
+            NDArray[np.float64]: x and y coordinates defining a polygon ROI. Ordered
+            such that they form a path around the ROI.
+        """   
+        border_size = step_size + 1
+        y = []
+        x_min = []
+        x_max = []
+        # Iterate down image and find the edges
+        # Note only works for non-holed specimens for now 
+        for j in range(0,image_mask.shape[0],spacing):
+            edge = np.where(image_mask[j,:]==1)
+            try: 
+                x_min.append(edge[0][0]+border_size)
+                x_max.append(edge[0][-1]-border_size)
+                y.append(j)
+            except IndexError:
+                continue
+
+        y_roi = np.concatenate((np.flip(np.array(y)),np.array(y)))
+        x_roi = np.concatenate((np.array(x_min),np.flip(np.array(x_max))))
+        return x_roi, y_roi
+    
+
+    def preprocess_images(self,fedata: SpatialData,time_steps:list[int]):
+        
+        # Check if the image mask already exists
+
+        coords = np.array(fedata.mesh_data.points)
+        disp_x = fedata.data_fields['displacement'].data[:,0,time_steps]
+        disp_y = fedata.data_fields['displacement'].data[:,1,time_steps]
+
+        input_im = sid.load_image(self.base_image_path)
+
+        if self.image_mask is None: # If it doesn't run the preprocessing
+            self.mesh_template = fedata.mesh_data
+            
+            (self.upsampled_image,
+            self.image_mask,
+            self.input_im,
+            disp_x,
+            disp_y) = sid.preprocess(input_im,
+                                    coords,
+                                    disp_x,
+                                    disp_y,
+                                    self.camera_opts,
+                                    self.image_def_opts,
+                                    print_on = True)
+            
+        else: # There's an existing mask
+            if self.mesh_template == fedata.mesh_data: # Did it come from the same mesh?
+                # Code from image def 
+                print('Retaining existing image mask')
+                if disp_x.ndim == 1:
+                    disp_x = np.atleast_2d(disp_x).T
+                if disp_y.ndim == 1:
+                    disp_y = np.atleast_2d(disp_y).T
+
+            else: # It's not the same mesh
+                # Update the template
+                self.mesh_template = fedata.mesh_data
+                
+                (self.upsampled_image,
+                self.image_mask,
+                self.input_im,
+                disp_x,
+                disp_y) = sid.preprocess(input_im,
+                                        coords,
+                                        disp_x,
+                                        disp_y,
+                                        self.camera_opts,
+                                        self.image_def_opts,
+                                        print_on = True)
+                
+        return coords, disp_x, disp_y
+                
+    def run_filter(self,fedata: SpatialData):
+
+        # Do some image deformation
+        coords, disp_x, disp_y = self.preprocess_images(fedata,self.time_steps)
+        
+        print_on = True
+        if print_on:
+            print('\n'+'='*80)
+            print('DEFORMING IMAGES')
+
+        num_frames = disp_x.shape[1]
+        ticl = time.perf_counter()
+
+        for ff in range(num_frames):
+            if print_on:
+                ticf = time.perf_counter()
+                print(f'\nDEFORMING FRAME: {ff}')
+
+            (def_image,_,_,_,_) = sid.deform_one_image(self.upsampled_image,
+                                                self.camera_opts,
+                                                self.image_def_opts,
+                                                coords, # type: ignore
+                                                np.array((disp_x[:,ff],disp_y[:,ff])).T,
+                                                image_mask=self.image_mask,
+                                                print_on=print_on)
+
+            save_file = id_opts.save_path / str(f'{id_opts.save_tag}_'+
+                    f'{sid.get_image_num_str(im_num=ff,width=4)}'+
+                    '.tiff')
+            sid.save_image(save_file,def_image,camera.bits)
+
+            if print_on:
+                tocf = time.perf_counter()
+                print(f'DEFORMING FRAME: {ff} took {tocf-ticf:.4f} seconds')
+
+        if print_on:
+            tocl = time.perf_counter()
+            print('\n'+'-'*50)
+            print(f'Deforming all images took {tocl-ticl:.4f} seconds')
+            print('-'*50)
+
+            print('\n'+'='*80)
+            print('COMPLETE\n')
+
+        x_roi, y_roi = self.create_roi_polygon(self.image_mask,step_size=self.step_size)
+        self.dice_manager.update_input_file()
+        self.dice_manager.write_subsets_file(x_roi,y_roi)
+        self.dice_manager.run()
+
+#%%
+
+tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
+#%%
+#tf.preprocess_images(cur_best)
+tf.run_filter(fe_data)
+#%%
 # Step 1: Read a default XML file to get some information
 # Need the step size to apply to ROI size.
+#step_size = dm.read_step_size()
 
 # Step 2: Image deformation, get image mask, 
 # Possibility to store image mask if it's being used repeatedly
 # as that can be the time consuming bit
+# Is there a check we can do to see if the input shape has changed? 
+# Maybe check the coordinates?
+
+if retain_image_mask == True : #and self.image_mask is not None:
+    pass
+
+(upsampled_image,
+     image_mask,
+     input_im,
+     disp_x,
+     disp_y) = sid.preprocess(input_im,
+                            coords,
+                            disp_x,
+                            disp_y,
+                            camera,
+                            id_opts,
+                            print_on = True)
+
+
+x_roi, y_roi = create_roi_polygon(image_mask,step_size=step_size)
 
 # Step 3: Modify DICe input files
+dm.update_input_file()
+dm.write_subsets_file(x_roi,y_roi)
 
 # Step 4: Run DICe
+#output_exodus = dm.run()
 
 # Step 5: Read in results, push to spatial data format
+exodus_reader = ExodusReader(output_exodus)
+all_sim_data = exodus_reader.read_all_sim_data()
 
+
+#%% Test equivalence of mesh from same geometry, different runs:
+best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/Uniaxial_Specimen/uniax_creep_perz_out_opt.e'
+
+#best_file = '/home/rspencer/projects/DICe/build/tests/regression/dic_challenge_14_vsg/results/dic_challenge_14.e'
+exodus_reader = ExodusReader(Path(best_file))
+all_sim_data = exodus_reader.read_all_sim_data()
+#test = return_mesh_simdata(all_sim_data,dim3=False)
+cur_m1= simdata_to_spatialdata(all_sim_data)
+
+best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/Uniaxial_Specimen/uniax_creep_perz_out_opt2.e'
+
+#best_file = '/home/rspencer/projects/DICe/build/tests/regression/dic_challenge_14_vsg/results/dic_challenge_14.e'
+exodus_reader = ExodusReader(Path(best_file))
+all_sim_data = exodus_reader.read_all_sim_data()
+#test = return_mesh_simdata(all_sim_data,dim3=False)
+cur_m2= simdata_to_spatialdata(all_sim_data)
+
+
+# %%
+cur_m1.plot()
+# %%
+cur_m1.mesh_data == cur_m2.mesh_data
+# %%

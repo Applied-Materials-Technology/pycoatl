@@ -80,7 +80,7 @@ def simdata_to_spatialdata(simdata)->SpatialData:
     """
 
     # Create metadata table
-    metadata = {'data_source':'SimData Exodus'}
+    metadata = {'data_source':'SimData Moose Exodus'}
 
     #Check for symmety 
     x_symm = ('X-Symm','node') in simdata.side_sets
