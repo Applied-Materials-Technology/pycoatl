@@ -11,6 +11,8 @@ from pycoatl.spatialdata.importmatchid import field_lookup
 from pycoatl.spatialdata.tensorfield import vector_field
 from pycoatl.spatialdata.tensorfield import rank_two_field
 from pathlib import Path
+from pycoatl.spatialdata.importmatchid import return_points_matchid
+from pycoatl.spatialdata.importmatchid import matchid_to_spatialdata
 
 # %%
 folder_path = Path(r'C:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Anaconda_Python\Test\pycoatl\data\matchid_dat_2024')
@@ -50,3 +52,28 @@ field_dict = {'displacements':displacements,'strains':ea_strains}
 input_data = np.dstack((all_sim_data.node_vars['disp_x'],all_sim_data.node_vars['disp_y'],np.zeros_like(all_sim_data.node_vars['disp_y'])))
 print(input_data.shape)
 input_data = np.swapaxes(input_data,1,2)
+
+#%%
+initial = pd.read_csv(folder_path / files[0])
+t = return_points_matchid(initial,version)
+# %%
+data_folder = Path(r'c:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Projects\FY25\Eurofusion_Duct\Spec_5_RT_0-7\Exp')
+load_file = Path(r'c:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Projects\FY25\Eurofusion_Duct\Spec_5_RT_0-7\Image.csv')
+
+t = matchid_to_spatialdata(data_folder,load_file)
+
+# %%
+reader = pv.get_reader(r'c:\Users\rspencer\OneDrive - UK Atomic Energy Authority\Projects\FY25\Eurofusion_Duct\notched\Notch_0-7.stl')
+mesh_ref_0_7 = reader.read()
+
+# %%
+mesh_align,trans_mat = t.mesh_data.align(mesh_ref_0_7,return_matrix=True)
+# %%
+pl = pv.Plotter()
+pl.add_mesh(mesh_ref_0_7)
+pl.add_mesh(mesh_align)
+pl.view_
+z()
+pl.show_axes()
+pl.show()
+# %%
