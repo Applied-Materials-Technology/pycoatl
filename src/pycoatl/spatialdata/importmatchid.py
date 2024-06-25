@@ -76,6 +76,24 @@ def return_mesh_matchid(matchid_dataframe: pd.DataFrame,version: str) -> pv.Unst
 
     return grid
 
+def return_points_matchid(matchid_dataframe: pd.DataFrame,version: str) -> pv.PolyData:
+    """Return a polydata object from pyvista constructed from matchid data.
+
+    Args:
+        matchid_dataframe (pandas dataframe): Dataframe containing matchid csv import. 
+        version (str): Software version, changes the column headers
+
+    Returns:
+        pv.PolyData: _description_
+    """
+    
+    x = matchid_dataframe[field_lookup('x',version)].to_numpy()
+    y = matchid_dataframe[field_lookup('y',version)].to_numpy()
+    z = matchid_dataframe[field_lookup('z',version)].to_numpy()
+    points = np.vstack((x,-y,-z)).T
+    poly = pv.PolyData(points)
+    return poly
+
 def matchid_to_spatialdata(folder_path: Path,load_filename: Path,fields=['u','v','w','exx','eyy','exy'],version='2024.1',loadfile_format='Image.csv') -> SpatialData:
     """Reads matchid data and converts to SpatialData format
     
@@ -101,7 +119,7 @@ def matchid_to_spatialdata(folder_path: Path,load_filename: Path,fields=['u','v'
     # Should maybe check indices match, but for now leaving it.
     
     initial = pd.read_csv(folder_path / files[0])
-    initial_mesh = return_mesh_matchid(initial,version)
+    initial_mesh = return_points_matchid(initial,version)
 
     #Assuming that the files are in order.
     data_dict = {}
