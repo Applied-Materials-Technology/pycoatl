@@ -144,7 +144,34 @@ class SpatialData():
 
         for field in self.data_fields.values():
             field.rotate(self.transformation_matrix)
-  
+
+    def update_mesh(self, time_step: int) -> None:
+        """Upate the mesh to be at a given time step.
+        Update all fields to be zero that time step.
+
+        Args:
+            time_step (int): time step to be new zero
+        """
+        #TBC
+        # Reset mesh 
+
+        self.rebaseline(0)
+        self.rebaseline(time_step)
+
+
+
+    def rebaseline(self,time_step:int):
+        x = self.mesh_data.points[:,0] + self.data_fields['displacement'].data[:,0,time_step]
+        y = self.mesh_data.points[:,1] + self.data_fields['displacement'].data[:,1,time_step]
+        z = self.mesh_data.points[:,2] + self.data_fields['displacement'].data[:,2,time_step]
+
+        disps = np.vstack((x,y,z)).T
+        self.mesh_data.points= disps
+
+        for data_field in self.data_fields:
+            cur_data = np.tile(np.expand_dims(self.data_fields[data_field].data[:,:,time_step],2),self.n_steps)
+            self.data_fields[data_field].data = self.data_fields[data_field].data - cur_data
+
 
 
     def interpolate_to_grid(self,spacing=0.2):
