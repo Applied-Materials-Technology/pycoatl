@@ -29,6 +29,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 import subprocess
 import time
+
+from pycoatl.datafilters.datafilters import DiceFilter
 #%%
 # Copying over code from LLoyd's examples in pyvale
 
