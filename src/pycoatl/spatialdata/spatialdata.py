@@ -368,6 +368,23 @@ class SpatialData():
             self.data_fields['equiv_stress'] = scalar_field(np.expand_dims(vm_stress,1))
         except KeyError: 
             print('Stress field not found. Please calculate the stress.')
+
+    def get_hydrostatic_stress(self,stress_field = 'stress')->None:
+
+        try: 
+            d = self.data_fields[stress_field].calculate_invariant(1)/3
+            self.data_fields['hyd_stress'] = scalar_field(d)
+        except KeyError: 
+            print('Stress field not found. Please calculate the stress.')
+
+    def get_triaxiality(self):
+
+        try:
+            h = self.data_fields['hyd_stress'].data
+            e = self.data_fields['equiv_stress'].data
+            self.data_fields['triaxiality'] = scalar_field(np.expand_dims(h/e,1))
+        except:
+            print('Not all fields required. Run get_hydrostatic_stress and get_equivalent_stress')
  
 
     def plot(self,data_field='displacement',component=[1],time_step = -1 ,*args,**kwargs):

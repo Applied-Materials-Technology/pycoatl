@@ -85,7 +85,7 @@ dice_opts= DiceOpts(input_file_name,
                     output_folder)
 dm = DiceManager(dice_opts)
 
-tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
+#tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
 
 
 # %%
@@ -95,4 +95,14 @@ t = tf.run_filter(cur_best)
 exodus_reader = ExodusReader(Path('/home/rspencer/pycoatl/examples/ImDef/results/DICe_solution.e'))
 all_sim_data = exodus_reader.read_all_sim_data()
 t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
+# %%
+t.plot('vsg_strain',[1,1],1)
+# %%
+es = cur_best.data_fields['elastic_strain'].data[:,4,200]
+ps = cur_best.data_fields['plastic_strain'].data[:,4,200]
+cur_best.mesh_data.plot(scalars=es+ps )
+# %%
+cur_best.plot('ts',[1,1],200)
+# %%
+cur_best.data_fields['ts']=cur_best.data_fields['elastic_strain']+cur_best.data_fields['plastic_strain']
 # %%
