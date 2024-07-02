@@ -35,7 +35,8 @@ def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
             con = connect.T[i].tolist()
             vis_con = [x for x in con if x in surface_nodes]
             if vis_con:
-                cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
+                if len(vis_con)>3:
+                    cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
         num_cells = len(cells)
         cells = np.array(cells).ravel()
         points = simdata.coords[surface_nodes-1]
