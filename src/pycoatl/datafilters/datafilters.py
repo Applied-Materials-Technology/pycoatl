@@ -59,7 +59,7 @@ class FastFilterRegularGrid(DataFilterBase):
         #eyy = dvdy - 0.5*(dvdy**2+dudy**2)
         eyy = np.log(np.sqrt(1 + 2*dvdy + dvdx**2 + dvdy**2))
         #exy = 0.5*(dudy + dvdx) - 0.5*((dudx*dudy)+(dvdx*dvdy))
-        exy = np.log(dvdx*(1+dudx) + dudy*(1+dvdy))
+        exy = (dvdx*(1+dudx)) + (dudy*(1+dvdy))
         return exx,eyy,exy
     
     @staticmethod
@@ -73,7 +73,7 @@ class FastFilterRegularGrid(DataFilterBase):
         #eyy = dvdy - 0.5*(dvdy**2+dudy**2)
         eyy = np.log(np.sqrt(1 + 2*dvdy + dudy**2 + dvdy**2))
         #exy = 0.5*(dudy + dvdx) - 0.5*((dudx*dudy)+(dvdx*dvdy))
-        exy = np.log(dudy*(1+dudx) + dvdx*(1+dvdy))
+        exy = dudy*(1+dudx) + dvdx*(1+dvdy)
         return exx,eyy,exy   
     
     @staticmethod
@@ -84,7 +84,7 @@ class FastFilterRegularGrid(DataFilterBase):
         """
         exx = dudx
         eyy = dvdy
-        exy = 0.5*(dudy + dvdx)
+        exy = (dudy + dvdx)
         return exx,eyy,exy
     
     @staticmethod
@@ -222,7 +222,7 @@ class FastFilterRegularGrid(DataFilterBase):
             dudx[point,:],dudy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,u,window_size)
             dvdx[point,:],dvdy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,v,window_size)
 
-        return dudx,dudy,dvdx,-dvdy
+        return dudx,-dudy,dvdx,-dvdy
     
     def run_filter(self,data : SpatialData)-> SpatialData:
        

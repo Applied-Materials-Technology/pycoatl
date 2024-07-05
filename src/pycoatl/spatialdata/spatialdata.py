@@ -397,6 +397,8 @@ class SpatialData():
         mesh_data = self.get_mesh_component(data_field,component,time_step)
         x_length = mesh_data.bounds[1] -mesh_data.bounds[0]
         y_length = mesh_data.bounds[3] -mesh_data.bounds[2]
+
+        
         #mesh_data.plot(scalars=data_field+str(component),cpos='xy',*args,**kwargs)
         if y_length>=x_length:
             pl = pv.Plotter(window_size=[768,1024])
@@ -405,11 +407,12 @@ class SpatialData():
         pl.add_mesh(mesh_data,scalars=data_field+str(component),*args,**kwargs)
         pl.view_xy()
         pl.remove_scalar_bar()
+        pl.enable_parallel_projection()
         
         if y_length>=x_length:
-            pl.add_scalar_bar(title=data_field+str(component),vertical=True,position_x=0.7,position_y = 0.2,label_font_size = 20,title_font_size=20)
+            pl.add_scalar_bar(title=data_field+'\n'+str(component),vertical=True,position_x=0.85,position_y = 0.2,label_font_size = 20,title_font_size=20)
         else: 
-            pl.add_scalar_bar(title=data_field+str(component),vertical=False,position_x=0.2,position_y = 0.2,label_font_size = 20,title_font_size=20)
+            pl.add_scalar_bar(title=data_field+'\n'+str(component),vertical=False,position_x=0.2,position_y = 0.2,label_font_size = 20,title_font_size=20)
         #pl.update_scalar_bar_range([100,180])
         pl.add_ruler(
             pointa= [mesh_data.bounds[0], mesh_data.bounds[2] - 0.1, 0.0],
