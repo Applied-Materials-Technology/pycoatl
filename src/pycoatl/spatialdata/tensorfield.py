@@ -170,6 +170,42 @@ class rank_two_field(tensor_field_base):
     def get_component(self, component: Sequence) -> npt.NDArray:
         return np.swapaxes(np.atleast_3d(self.data[:,3*component[0]+component[1],:]),1,2)
     
+    def subtract_constant_tensor(self,tensor:npt.NDArray) -> None:
+        """Subtracts a constant value tensor from the whole tensor field
+
+        Args:
+            tensor (npt.NDArray): 
+        """
+        const_field = np.swapaxes(np.tile(tensor,(self.n_points,self.n_steps,1)),1,2)
+        self.data = self.data - const_field
+
+    def spatial_mean(self):
+        """Return the spatial mean (i.e. mean over each point)
+
+        Returns:
+        rank_two_field : rank two field with one 'point' that contains the mean values
+        """
+        mean_values = np.expand_dims(np.nanmean(self.data,axis=0),axis=0)
+        return rank_two_field(mean_values)
+    
+    def __sub__(self,other_field):
+        """Subtract method for fields
+
+        Args:
+            other_field (rank_two_field): _description_
+        """
+
+        # Check whether it's matching in dimensions
+        if self.n_points == other_field.n_points and self.n_steps == other_field.n_steps:
+            return rank_two_field(self.data-other_field.data)
+        
+        elif other_field.n_points ==1 and self.n_steps == other_field.n_steps:
+            return rank_two_field(self.data-np.tile(other_field.data,[self.n_points,1,1]))
+        
+        else:
+            raise ValueError('Rank Two Fields are not of the same size. Fields should have the same number of points and steps, or one field should consist of a single point with mean values at each step.')
+
+    
     def get_principal(self)->Self:
         """Get a rank_two_field with the principal strains
 
