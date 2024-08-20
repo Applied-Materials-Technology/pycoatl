@@ -332,17 +332,20 @@ class SpatialData():
         strain.assign_plane_stress(nu)
         #self.data_fields['principal_strain'] = strain.get_principal()
         #Calculate bulk and shear modulus
-        a = E/(1-(nu**2))
-        g = E/(2*(1+nu))
+        #a = E/(1-(nu**2))
+        #g = E/(2*(1+nu))
+        c11 = (E*(1-nu))/((1+nu)*(1-2*nu))
+        c12 = (E*nu)/((1+nu)*(1-2*nu))
+        g = (c11-c12)
 
         strain_trace = strain.calculate_invariant(1)
         #e_22 = (-nu/(1-nu))*(strain.get_component([0,0])+strain.get_component([1,1]))
 
-        s_11 = a*(strain.get_component([0,0])+nu*strain.get_component([1,1]))
+        s_11 = c11*strain.get_component([0,0])+c12*strain.get_component([1,1])
         s_12 = g*(strain.get_component([0,1]))
         s_13 = 0*(strain.get_component([0,2]))
         s_21 = g*(strain.get_component([1,0]))
-        s_22 = a*(strain.get_component([1,1])+nu*strain.get_component([0,0]))
+        s_22 = c11*strain.get_component([1,1])+c12*strain.get_component([0,0])
         s_23 = 0*(strain.get_component([1,2]))
         s_31 = 0*(strain.get_component([2,0]))
         s_32 = 0*(strain.get_component([2,1]))
@@ -356,7 +359,7 @@ class SpatialData():
         self.metadata['Poissons Ratio'] = nu  
     
     def get_equivalent_strain(self,strain_field = 'total_strain')->None:
-        d = self.data_fields[strain_field].get_deviatoric()
+        d = self.data_fields[strain_field]#.get_deviatoric()
         vm_strain = np.sqrt((2/3)*d.inner_product_field(d.data,d.data)) 
         self.data_fields['equiv_strain'] = scalar_field(np.expand_dims(vm_strain,1))
 
