@@ -18,8 +18,8 @@ from pyvale.imagesim.cameradata import CameraData
 import pyvale.imagesim.imagedef as sid
 
 #%% Import some data
-best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
-
+#best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
+best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 cur_best= simdata_to_spatialdata(all_sim_data)
@@ -86,7 +86,7 @@ dice_opts= DiceOpts(input_file_name,
 dm = DiceManager(dice_opts)
 
 #tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
-
+tf= DiceFilter(base_image,id_opts,camera,dice_opts,[2,4,5])
 
 # %%
 t = tf.run_filter(cur_best)
@@ -96,13 +96,13 @@ exodus_reader = ExodusReader(Path('/home/rspencer/pycoatl/examples/ImDef/results
 all_sim_data = exodus_reader.read_all_sim_data()
 t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
 # %%
-t.plot('vsg_strain',[1,1],1)
+t.plot('vsg_strain',[1,1],-1)
 # %%
-es = cur_best.data_fields['elastic_strain'].data[:,4,200]
-ps = cur_best.data_fields['plastic_strain'].data[:,4,200]
-cur_best.mesh_data.plot(scalars=es+ps )
+#es = cur_best.data_fields['elastic_strain'].data[:,4,200]
+#ps = cur_best.data_fields['plastic_strain'].data[:,4,200]
+#cur_best.mesh_data.plot(scalars=es+ps )
 # %%
-cur_best.plot('ts',[1,1],200)
+#cur_best.plot('ts',[1,1],200)
 # %%
-cur_best.data_fields['ts']=cur_best.data_fields['elastic_strain']+cur_best.data_fields['plastic_strain']
+#cur_best.data_fields['ts']=cur_best.data_fields['elastic_strain']+cur_best.data_fields['plastic_strain']
 # %%
