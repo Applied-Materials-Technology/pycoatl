@@ -1,0 +1,13 @@
+<ParameterList>
+  <Parameter name="subset_file" type="string" value="./subsets.txt" />
+  <Parameter name="subset_size" type="int" value="21" />
+  <Parameter name="step_size" type="int" value="10" />
+  <Parameter name="output_folder" type="string" value="./results/" />
+  <Parameter name="image_folder" type="string" value="" />
+  <Parameter name="reference_image" type="string" value="/home/rspencer/pycoatl/examples/ImDef/deformed_images/defimage_0000.tiff"  />
+  <ParameterList name="deformed_images">
+    <Parameter name="/home/rspencer/pycoatl/examples/ImDef/deformed_images/defimage_0001.tiff" type="bool" value="true"  />   
+    <Parameter name="/home/rspencer/pycoatl/examples/ImDef/deformed_images/defimage_0002.tiff" type="bool" value="true"  />  
+  </ParameterList>
+  <Parameter name="correlation_parameters_file" type="string" value="params.xml" /> 
+</ParameterList>

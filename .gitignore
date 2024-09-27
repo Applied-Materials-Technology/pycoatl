@@ -142,4 +142,6 @@ dmypy.json
 .DS_Store
 
 #Other
-examples/ImDef
+examples/ImDef/deformed_images
+examples/ImDef/results
+
