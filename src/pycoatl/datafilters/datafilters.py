@@ -276,6 +276,9 @@ class DiceOpts:
     # Output file
     output_folder: Path
 
+    #Dice location
+    dice_path: Path = Path('/home/rspencer/projects/DICe/build/bin/dice')
+
 class DiceManager:
 
     def __init__(self,dice_opts):
@@ -365,7 +368,7 @@ class DiceManager:
 
         results_path = self.dice_opts.output_folder / 'DICe_solution.e'
         
-        args = ['dice','-i', str(self.dice_opts.mod_file_name)]
+        args = [self.dice_opts.dice_path,'-i', str(self.dice_opts.mod_file_name)]
         subprocess.run(args,shell=False,cwd=str(self.dice_opts.mod_file_name.parent))
 
         return results_path

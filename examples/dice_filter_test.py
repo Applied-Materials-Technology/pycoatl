@@ -44,7 +44,7 @@ id_opts.crop_px = np.array([650,2000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
-id_opts.calc_res_from_fe = True
+id_opts.calc_res_from_fe = False
 id_opts.calc_res_border_px = 10
 
 # Set this to true to create an undeformed masked image

@@ -37,11 +37,11 @@ id_opts.def_complex_geom = True
 # If the input image is much larger than needed it can also be cropped to
 # increase computational speed.
 id_opts.crop_on = True
-id_opts.crop_px = np.array([500,2000])
+id_opts.crop_px = np.array([650,2000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
-id_opts.calc_res_from_fe = True
+id_opts.calc_res_from_fe = False
 id_opts.calc_res_border_px = 10
 
 # Set this to true to create an undeformed masked image
@@ -66,7 +66,7 @@ camera.bits = 8
 
 # Assume 1mm/px to start with, can update this to fit FE data within the FOV
 # using the id_opts above. Or set this manually.
-camera.m_per_px = 1.0e-3 # Overwritten by id_opts.calc_res_from_fe = True
+camera.m_per_px = 1.3e-5 # Overwritten by id_opts.calc_res_from_fe = True
 
 
 # %% Define necessary inputs
@@ -76,13 +76,14 @@ deformed_images = Path.cwd()/'examples/ImDef/deformed_images'
 subset_file =  input_file_name.parent /'subsets_roi.txt'
 output_folder = input_file_name.parent /'results'
 base_image = Path.cwd()/'examples/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff'
-
+dice_path = Path('~/src/dice/build/bin/dice')
 #%%
 dice_opts= DiceOpts(input_file_name,
                     mod_file_name,
                     deformed_images,
                     subset_file,
-                    output_folder)
+                    output_folder,
+                    dice_path)
 dm = DiceManager(dice_opts)
 
 #tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
