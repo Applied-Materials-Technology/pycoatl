@@ -37,7 +37,7 @@ from pycoatl.datafilters.datafilters import DiceFilter
 #%%
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
 
-#best_file = '/home/rspencer/projects/DICe/build/tests/regression/dic_challenge_14_vsg/results/dic_challenge_14.e'
+best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 #test = return_mesh_simdata(all_sim_data,dim3=False)
@@ -46,8 +46,8 @@ cur_best= simdata_to_spatialdata(all_sim_data)
 # Load image - expects a *.tiff or *.bmp that is grayscale
 im_path = Path('/home/rspencer/projects/pyvale/data/speckleimages')
 #im_file = 'OptimisedSpeckle_500_500_width3.0_16bit_GBlur1.tiff'
-im_file = 'OptimisedSpeckle_2464_2056_width5.0_8bit_GBlur1.tiff'
-im_path = im_path / im_file
+im_path = '/home/rspencer/pycoatl/examples/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff'
+#im_path = im_path / im_file
 print('\nLoading speckle image from path:')
 print(im_path)
 
@@ -89,8 +89,8 @@ id_opts.crop_px = np.array([500,2000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
-id_opts.calc_res_from_fe = True
-id_opts.calc_res_border_px = 10
+id_opts.calc_res_from_fe = False
+id_opts.calc_res_border_px = 100
 
 # Set this to true to create an undeformed masked image
 id_opts.add_static_ref = 'pad_disp'
@@ -117,9 +117,10 @@ camera.bits = 8
 if max(input_im.flatten()) > (2**8):
     camera.bits = 16
 
-# Assume 1mm/px to start with, can update this to fit FE data within the FOV
+# Assume 1mm/px to start with, can update this t
+# o fit FE data within the FOV
 # using the id_opts above. Or set this manually.
-camera.m_per_px = 1.0e-3 # Overwritten by id_opts.calc_res_from_fe = True
+camera.m_per_px = 1.3e-5 # Overwritten by id_opts.calc_res_from_fe = True
 
 # Can manually set the ROI location by setting the above to false and setting
 # the camera.roi_loc as the distance from the origin to the bottom left
@@ -127,7 +128,7 @@ camera.m_per_px = 1.0e-3 # Overwritten by id_opts.calc_res_from_fe = True
 
 # Default ROI is the whole FOV but we want to set this to be based on the
 # furthest nodes, this is set in FE units 'meters' and does not change FOV
-camera.roi_len = sid.calc_roi_from_nodes(camera,coords)
+camera.roi_len = sid.calc_roi_from_nodes(camera,coords)[0]
 
 
 # If we are masking an image we might want to set an optimal resolution based
@@ -139,7 +140,7 @@ if id_opts.calc_res_from_fe:
 
 # Default ROI is the whole FOV but we want to set this to be based on the
 # furthest nodes, this is set in FE units 'meters' and does not change FOV
-camera.roi_len = sid.calc_roi_from_nodes(camera,coords)
+#camera.roi_len = sid.calc_roi_from_nodes(camera,coords)
 
 camera._roi_loc[0] = (camera._fov[0] - camera._roi_len[0])/2 -np.min(coords[:,0])
 camera._roi_loc[1] = (camera._fov[1] - camera._roi_len[1])/2 -np.min(coords[:,1])
@@ -153,6 +154,7 @@ print('')
 (masked_im,image_mask) = sid.get_im_mask_from_sim(camera,
                         sid.rectangle_crop_image(camera,input_im),
                         coords)
+plt.imshow(image_mask)
 #%% For geometries without holes
 
 border_size = 10

@@ -431,16 +431,18 @@ class DiceFilter(DataFilterBase):
 
         coords = np.array(fedata.mesh_data.points)
 
-        self.camera_opts.m_per_px = sid.calc_res_from_nodes(self.camera_opts,coords, #type: ignore
-                                            self.image_def_opts.calc_res_border_px)
+        #self.camera_opts.m_per_px = sid.calc_res_from_nodes(self.camera_opts,coords, #type: ignore
+        #                                    self.image_def_opts.calc_res_border_px)
 
+        self.camera_opts.m_per_px = 1.3e-5
         # Default ROI is the whole FOV but we want to set this to be based on the
         # furthest nodes, this is set in FE units 'meters' and does not change FOV
-        #self.camera_opts.roi_len = sid.calc_roi_from_nodes(self.camera_opts,coords)
+        self.camera_opts.roi_len = sid.calc_roi_from_nodes(self.camera_opts,coords)[0]
 
-        #self.camera_opts._roi_loc[0] = (self.camera_opts._fov[0] - self.camera_opts._roi_len[0])/2 -np.min(coords[:,0])
-        #self.camera_opts._roi_loc[1] = (self.camera_opts._fov[1] - self.camera_opts._roi_len[1])/2 -np.min(coords[:,1])
-
+        self.camera_opts._roi_loc[0] = (self.camera_opts._fov[0] - self.camera_opts._roi_len[0])/2 -np.min(coords[:,0])
+        self.camera_opts._roi_loc[1] = (self.camera_opts._fov[1] - self.camera_opts._roi_len[1])/2 -np.min(coords[:,1])
+        #self.camera_opts.coord_offset =np.min(coords,axis=0)[:2] 
+        #self.camera_opts._cent_roi()
 
         disp_x = fedata.data_fields['displacement'].data[:,0,time_steps]
         disp_y = fedata.data_fields['displacement'].data[:,1,time_steps]

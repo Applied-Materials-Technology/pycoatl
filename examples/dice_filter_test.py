@@ -16,6 +16,9 @@ from pycoatl.datafilters.datafilters import DiceOpts
 from pyvale.imagesim.imagedefopts import ImageDefOpts
 from pyvale.imagesim.cameradata import CameraData
 import pyvale.imagesim.imagedef as sid
+from pyvale.imagesim.alphashape import alphashape
+
+import matplotlib.image as mplim
 
 #%% Import some data
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
@@ -37,7 +40,7 @@ id_opts.def_complex_geom = True
 # If the input image is much larger than needed it can also be cropped to
 # increase computational speed.
 id_opts.crop_on = True
-id_opts.crop_px = np.array([500,2000])
+id_opts.crop_px = np.array([650,2000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
@@ -75,7 +78,7 @@ mod_file_name = input_file_name.parent /'input_mod.xml'
 deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
 subset_file =  input_file_name.parent /'subsets_roi.txt'
 output_folder = input_file_name.parent /'results'
-base_image = Path('/home/rspencer/projects/pyvale/data/speckleimages/OptimisedSpeckle_2464_2056_width5.0_8bit_GBlur1.tiff')
+base_image = Path('/home/rspencer/pycoatl/examples/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff')
 
 #%%
 dice_opts= DiceOpts(input_file_name,
@@ -96,7 +99,7 @@ exodus_reader = ExodusReader(Path('/home/rspencer/pycoatl/examples/ImDef/results
 all_sim_data = exodus_reader.read_all_sim_data()
 t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
 # %%
-t.plot('vsg_strain',[1,1],-1)
+t.plot('vsg_strain',[1,1],-1,clim=[0,0.12])
 # %%
 #es = cur_best.data_fields['elastic_strain'].data[:,4,200]
 #ps = cur_best.data_fields['plastic_strain'].data[:,4,200]
@@ -105,4 +108,8 @@ t.plot('vsg_strain',[1,1],-1)
 #cur_best.plot('ts',[1,1],200)
 # %%
 #cur_best.data_fields['ts']=cur_best.data_fields['elastic_strain']+cur_best.data_fields['plastic_strain']
+# %%
+def_im = mplim.imread('/home/rspencer/pycoatl/examples/ImDef/deformed_images/defimage_0000.tiff')
+# %%
+plt.imshow(def_im)
 # %%
