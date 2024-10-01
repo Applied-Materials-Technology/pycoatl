@@ -9,7 +9,7 @@ import numpy as np
 import pyvista as pv
 from pycoatl.spatialdata.spatialdata import SpatialData
 import matplotlib.pyplot as plt
-
+from pycoatl.spatialdata.importsimdata import simdata_to_spatialdata
 
 #%% read something
 #output_file = Path('/home/rspencer/pycoatl/data/moose-sim-1_out.e')
@@ -23,22 +23,58 @@ folder = 1
 it = 8
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/Run/sim-workdir-{}/sim-{}_out.e'.format(folder,it)
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_out.e'
-#best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
+best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
 
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
-#cur_best= simdata_to_spatialdata(all_sim_data)
+cur_best= simdata_to_spatialdata(all_sim_data)
+
 # %%
 connect = all_sim_data.connect['connect1']
 # %%
-print(np.concatenate((4*np.ones((connect.shape[1],1)),connect.T),axis=1))
+print(np.concatenate((connect.shape[0]*np.ones((connect.shape[1],1)),connect.T-1),axis=1))
 # %%
-cells = np.concatenate((4*np.ones((connect.shape[1],1)),connect.T),axis=1).ravel().astype(int)
+cells = np.concatenate((connect.shape[0]*np.ones((connect.shape[1],1)),connect.T-1),axis=1).ravel().astype(int)
 points = all_sim_data.coords
-celltypes = np.full(connect.shape[1],pv.CellType.POLYGON,dtype=np.uint8)
+celltypes = np.full(connect.shape[1],pv.CellType.QUADRATIC_HEXAHEDRON,dtype=np.uint8)
 
 # %%
+surface_nodes = all_sim_data.side_sets[('Visible-Surface','node')]
+con = np.arange(1,all_sim_data.coords.shape[0]+1)
+mapping_inv = []
+for i in con:
+    if i in surface_nodes:
+        mapping_inv.append(np.where(surface_nodes==i)[0][0])
+    else:
+        mapping_inv.append(0)
+mapping_inv = np.array(mapping_inv)
+for i in range(1):
+    con = connect.T[i].tolist()
+    vis_con = [x for x in con if x in surface_nodes]
+print(vis_con)
+gmsh_to_vtk_quad_9 = [0,1,2,3,4,7,5,6,8]
+#cells = np.concatenate((np.array([9]),np.array(vis_con)[gmsh_to_vtk_quad_9]-1))
+cells=[len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist()
+points = all_sim_data.coords[np.array(vis_con)-1]
+celltypes = np.full(1,pv.CellType.BIQUADRATIC_QUAD,dtype=np.uint8)
+cells=[]
+for i in range(connect.shape[1]):
+    con = connect.T[i].tolist()
+    vis_con = [x for x in con if x in surface_nodes]
+    if vis_con:
+        if len(vis_con)==9:
+            cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
+num_cells = len(cells)
+cells = np.array(cells).ravel()
+points = all_sim_data.coords[surface_nodes-1]
+celltypes = np.full(num_cells,pv.CellType.BIQUADRATIC_QUAD,dtype=np.uint8)
+
+#%%
 grid = pv.UnstructuredGrid(cells,celltypes,points)
+grid.plot()
+
+
 # %%
 
 def return_mesh_simdata(simdata,dim3):
@@ -53,8 +89,20 @@ def return_mesh_simdata(simdata,dim3):
     # Get connectivity
     connect = simdata.connect['connect1']
 
+
+
     if dim3: # If 3D
         surface_nodes = simdata.side_sets[('Visible-Surface','node')]
+
+        quad_to_lin = {27:9, #HEX27 to QUAD9
+                       8:4  #HEX8 to QUAD4
+                       }
+        lin_celltypes = {4:9, #QUAD4 Cell type index
+                        9:28  #QUAD9 Cell type index
+                        }
+
+        # Work out element type from number of nodes.
+        num_nodes = quad_to_lin[connect.shape[0]]
         
         #Construct mapping from all-nodes to surface node indices
         con = np.arange(1,simdata.coords.shape[0]+1)
@@ -71,7 +119,8 @@ def return_mesh_simdata(simdata,dim3):
             con = connect.T[i].tolist()
             vis_con = [x for x in con if x in surface_nodes]
             if vis_con:
-                cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
+                if len(vis_con)==num_nodes:
+                    cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
         num_cells = len(cells)
         cells = np.array(cells).ravel()
         points = simdata.coords[surface_nodes-1]
@@ -83,7 +132,7 @@ def return_mesh_simdata(simdata,dim3):
         #Coordinates
         points = simdata.coords
         #Cell types (all polygon)
-    celltypes = np.full(num_cells,pv.CellType.POLYGON,dtype=np.uint8)
+    celltypes = np.full(num_cells,lin_celltypes[num_nodes],dtype=np.uint8)
     grid = pv.UnstructuredGrid(cells,celltypes,points)
     return grid
 
@@ -225,3 +274,23 @@ print(mapping_inv)
 print(simdata.coords[mapping])
 # %%
 # want such that go cells[mapping] = cells in new coords.
+
+
+#test = return_mesh_simdata(all_sim_data,dim3=False)
+#cur_best= simdata_to_spatialdata(all_sim_data)
+
+
+# %%
+#best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/Run/sim-workdir-{}/sim-{}_out.e'.format(folder,it)
+#best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_out.e'
+#best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
+
+exodus_reader = ExodusReader(Path(best_file))
+all_sim_data = exodus_reader.read_all_sim_data()
+cur_best= simdata_to_spatialdata(all_sim_data)
+
+#%%
+cur_best.plot()
+
+# %%

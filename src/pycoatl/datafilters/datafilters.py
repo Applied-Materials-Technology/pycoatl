@@ -437,7 +437,7 @@ class DiceFilter(DataFilterBase):
         #self.camera_opts.m_per_px = sid.calc_res_from_nodes(self.camera_opts,coords, #type: ignore
         #                                    self.image_def_opts.calc_res_border_px)
 
-        self.camera_opts.m_per_px = 1.3e-5
+        #self.camera_opts.m_per_px = 1.3e-5
         # Default ROI is the whole FOV but we want to set this to be based on the
         # furthest nodes, this is set in FE units 'meters' and does not change FOV
         self.camera_opts.roi_len = sid.calc_roi_from_nodes(self.camera_opts,coords)[0]

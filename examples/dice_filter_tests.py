@@ -105,5 +105,9 @@ t.plot('vsg_strain',[1,1],-1)
 # %%
 #cur_best.plot('ts',[1,1],200)
 # %%
-#cur_best.data_fields['ts']=cur_best.data_fields['elastic_strain']+cur_best.data_fields['plastic_strain']
+exodus_reader = ExodusReader(Path('/home/rspencer/data/P0288/DICe_solution.e'))
+all_sim_data = exodus_reader.read_all_sim_data()
+t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
+t.plot('vsg_strain',[1,1],-1)
+
 # %%

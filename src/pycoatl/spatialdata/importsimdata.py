@@ -19,6 +19,16 @@ def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
 
     if dim3: # If 3D
         surface_nodes = simdata.side_sets[('Visible-Surface','node')]
+
+        quad_to_lin = {27:9, #HEX27 to QUAD9
+                       8:4  #HEX8 to QUAD4
+                       }
+        lin_celltypes = {4:9, #QUAD4 Cell type index
+                        9:28  #QUAD9 Cell type index
+                        }
+
+        # Work out element type from number of nodes.
+        num_nodes = quad_to_lin[connect.shape[0]]
         
         #Construct mapping from all-nodes to surface node indices
         con = np.arange(1,simdata.coords.shape[0]+1)
@@ -35,12 +45,12 @@ def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
             con = connect.T[i].tolist()
             vis_con = [x for x in con if x in surface_nodes]
             if vis_con:
-                if len(vis_con)>3:
+                if len(vis_con)==num_nodes:
                     cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
         num_cells = len(cells)
         cells = np.array(cells).ravel()
         points = simdata.coords[surface_nodes-1]
-
+        celltypes = np.full(num_cells,lin_celltypes[num_nodes],dtype=np.uint8)
     else:
         # Rearrange to pyvista format
         surface_nodes = np.unique(simdata.connect['connect1'])
@@ -66,7 +76,7 @@ def return_mesh_simdata(simdata ,dim3: bool) -> pv.UnstructuredGrid:
         #Coordinates
         points = simdata.coords[surface_nodes-1]
         #Cell types (all polygon)
-    celltypes = np.full(num_cells,pv.CellType.POLYGON,dtype=np.uint8)
+        celltypes = np.full(num_cells,pv.CellType.POLYGON,dtype=np.uint8)
     grid = pv.UnstructuredGrid(cells,celltypes,points)
     return grid
 

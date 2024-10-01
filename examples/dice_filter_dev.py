@@ -37,7 +37,10 @@ from pycoatl.datafilters.datafilters import DiceFilter
 #%%
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
 
-best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
+#best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
+best_file = '/home/rspencer/pyfemop/examples/sim-workdir-1/sim_b-1_out.e'
+#best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
+
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 #test = return_mesh_simdata(all_sim_data,dim3=False)
@@ -85,7 +88,7 @@ id_opts.def_complex_geom = True
 # If the input image is much larger than needed it can also be cropped to
 # increase computational speed.
 id_opts.crop_on = True
-id_opts.crop_px = np.array([500,2000])
+id_opts.crop_px = np.array([750,1000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
@@ -120,7 +123,7 @@ if max(input_im.flatten()) > (2**8):
 # Assume 1mm/px to start with, can update this t
 # o fit FE data within the FOV
 # using the id_opts above. Or set this manually.
-camera.m_per_px = 1.3e-5 # Overwritten by id_opts.calc_res_from_fe = True
+camera.m_per_px = 0.05#1.3e-4 # Overwritten by id_opts.calc_res_from_fe = True
 
 # Can manually set the ROI location by setting the above to false and setting
 # the camera.roi_loc as the distance from the origin to the bottom left

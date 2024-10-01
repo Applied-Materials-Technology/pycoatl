@@ -23,6 +23,8 @@ import matplotlib.image as mplim
 #%% Import some data
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
 best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
+best_file = '/home/rspencer/pyfemop/examples/sim-workdir-1/sim_b-1_out.e'
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 cur_best= simdata_to_spatialdata(all_sim_data)
@@ -69,7 +71,7 @@ camera.bits = 8
 
 # Assume 1mm/px to start with, can update this to fit FE data within the FOV
 # using the id_opts above. Or set this manually.
-camera.m_per_px = 1.0e-3 # Overwritten by id_opts.calc_res_from_fe = True
+camera.m_per_px = 1e-3#1.0e-5 # Overwritten by id_opts.calc_res_from_fe = True
 
 
 # %% Define necessary inputs
@@ -99,7 +101,7 @@ exodus_reader = ExodusReader(Path('/home/rspencer/pycoatl/examples/ImDef/results
 all_sim_data = exodus_reader.read_all_sim_data()
 t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
 # %%
-t.plot('vsg_strain',[1,1],-1,clim=[0,0.12])
+t.plot('vsg_strain',[0,1],-1)
 # %%
 #es = cur_best.data_fields['elastic_strain'].data[:,4,200]
 #ps = cur_best.data_fields['plastic_strain'].data[:,4,200]
