@@ -14,6 +14,7 @@ from pycoatl.datafilters.datafilters import DiceManager
 from pycoatl.datafilters.datafilters import DiceOpts
 
 from pyvale.imagesim.imagedefopts import ImageDefOpts
+
 from pyvale.imagesim.cameradata import CameraData
 import pyvale.imagesim.imagedef as sid
 from pyvale.imagesim.alphashape import alphashape
@@ -42,7 +43,7 @@ id_opts.def_complex_geom = True
 # If the input image is much larger than needed it can also be cropped to
 # increase computational speed.
 id_opts.crop_on = True
-id_opts.crop_px = np.array([650,2000])
+id_opts.crop_px = np.array([650,1000])
 
 # Calculates the m/px value based on fitting the specimen/ROI within the camera
 # FOV and leaving a set number of pixels as a border on the longest edge
@@ -71,7 +72,7 @@ camera.bits = 8
 
 # Assume 1mm/px to start with, can update this to fit FE data within the FOV
 # using the id_opts above. Or set this manually.
-camera.m_per_px = 1e-3#1.0e-5 # Overwritten by id_opts.calc_res_from_fe = True
+camera.m_per_px = 0.05#1e-3#1.0e-5 # Overwritten by id_opts.calc_res_from_fe = True
 
 
 # %% Define necessary inputs
@@ -91,7 +92,7 @@ dice_opts= DiceOpts(input_file_name,
 dm = DiceManager(dice_opts)
 
 #tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
-tf= DiceFilter(base_image,id_opts,camera,dice_opts,[2,4,5])
+tf= DiceFilter(base_image,id_opts,camera,dice_opts,[2,4,-1])
 
 # %%
 t = tf.run_filter(cur_best)
@@ -101,7 +102,9 @@ exodus_reader = ExodusReader(Path('/home/rspencer/pycoatl/examples/ImDef/results
 all_sim_data = exodus_reader.read_all_sim_data()
 t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,camera.roi_loc)
 # %%
-t.plot('vsg_strain',[0,1],-1)
+#t.plot('vsg_strain',[0,0],-1)
+# For Some reason the displacements are backwards... look in the image deformation data!
+t.plot('displacement',[1],-1)
 # %%
 #es = cur_best.data_fields['elastic_strain'].data[:,4,200]
 #ps = cur_best.data_fields['plastic_strain'].data[:,4,200]

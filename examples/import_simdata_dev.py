@@ -10,6 +10,9 @@ import pyvista as pv
 from pycoatl.spatialdata.spatialdata import SpatialData
 import matplotlib.pyplot as plt
 from pycoatl.spatialdata.importsimdata import simdata_to_spatialdata
+from pycoatl.spatialdata.spatialdata import SpatialData
+from pycoatl.spatialdata.tensorfield import vector_field
+from pycoatl.spatialdata.tensorfield import rank_two_field
 
 #%% read something
 #output_file = Path('/home/rspencer/pycoatl/data/moose-sim-1_out.e')
@@ -24,7 +27,8 @@ it = 8
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/Run/sim-workdir-{}/sim-{}_out.e'.format(folder,it)
 #best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_out.e'
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
-best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
+#best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
+best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
 
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
@@ -89,8 +93,6 @@ def return_mesh_simdata(simdata,dim3):
     # Get connectivity
     connect = simdata.connect['connect1']
 
-
-
     if dim3: # If 3D
         surface_nodes = simdata.side_sets[('Visible-Surface','node')]
 
@@ -124,20 +126,38 @@ def return_mesh_simdata(simdata,dim3):
         num_cells = len(cells)
         cells = np.array(cells).ravel()
         points = simdata.coords[surface_nodes-1]
-
+        celltypes = np.full(num_cells,lin_celltypes[num_nodes],dtype=np.uint8)
     else:
         # Rearrange to pyvista format
-        cells = np.concatenate((4*np.ones((connect.shape[1],1)),connect.T-1),axis=1).ravel().astype(int)
-        num_cells = connect.shape[1]
+        surface_nodes = np.unique(simdata.connect['connect1'])
+        con = np.arange(1,simdata.coords.shape[0]+1)
+        mapping_inv = []
+        for i in con:
+            if i in surface_nodes:
+                mapping_inv.append(np.where(surface_nodes==i)[0][0])
+            else:
+                mapping_inv.append(0)
+        mapping_inv = np.array(mapping_inv)
+        #cells = np.concatenate((4*np.ones((connect.shape[1],1)),connect.T-1),axis=1).ravel().astype(int)
+        #num_cells = connect.shape[1]
+        cells=[]
+        for i in range(connect.shape[1]):
+            con = connect.T[i].tolist()
+            vis_con = [x for x in con if x in surface_nodes]
+            if vis_con:
+                cells.append([len(vis_con)]+mapping_inv[np.array(vis_con)-1].tolist())
+        num_cells = len(cells)
+        cells = np.array(cells).ravel()
+        
         #Coordinates
-        points = simdata.coords
+        points = simdata.coords[surface_nodes-1]
         #Cell types (all polygon)
-    celltypes = np.full(num_cells,lin_celltypes[num_nodes],dtype=np.uint8)
+        celltypes = np.full(num_cells,pv.CellType.POLYGON,dtype=np.uint8)
     grid = pv.UnstructuredGrid(cells,celltypes,points)
     return grid
 
 #%%
-test = return_mesh_simdata(all_sim_data,True)
+test = return_mesh_simdata(all_sim_data,False)
 # %%
 def simdata_to_spatialdata(simdata):
     """Reads simdata from mooseherder exodus reader
@@ -151,7 +171,7 @@ def simdata_to_spatialdata(simdata):
     """
 
     # Create metadata table
-    metadata = {'data_source':'SimData Exodus'}
+    metadata = {'data_source':'SimData Moose Exodus'}
 
     #Check for symmety 
     x_symm = ('X-Symm','node') in simdata.side_sets
@@ -172,28 +192,80 @@ def simdata_to_spatialdata(simdata):
     time = simdata.time
     load = -simdata.glob_vars['react_y']
     index = np.arange(len(time))
+    
+    data_dict = {}
+    for field in simdata.node_vars:
+        data_dict[field] = simdata.node_vars[field][surface_nodes]
 
-    #Iterate over times.
-    data_sets = []
-    for i in range(len(time)):
-        #Create empty mesh to overwrite
-        current_grid = pv.UnstructuredGrid()
-        current_grid.copy_from(initial_mesh)
-        # add only nodal variables for now.
-        for data in simdata.node_vars:
-            current_grid[data] = simdata.node_vars[data][surface_nodes,i]
+    if x_symm:
+        #Reflect mesh
+        initial_mesh_ref_x = initial_mesh.reflect((1,0,0),point=(0,0,0))
+        # Find overlapping points
+        overlap= initial_mesh.points[:,0]==initial_mesh_ref_x.points[:,0]
 
-        if x_symm:
-            reflected_grid = current_grid.reflect((1,0,0),point=(0,0,0))
-            reflected_grid['disp_x'] = -1*reflected_grid['disp_x']                    
-            current_grid += reflected_grid
-        if y_symm:
-            reflected_grid = current_grid.reflect((0,1,0),point=(0,0,0))
-            reflected_grid['disp_y'] = -1*reflected_grid['disp_y']                    
-            current_grid += reflected_grid
-        data_sets.append(current_grid)
+        for field in data_dict:
+            if field == 'disp_x' or '_xy' in field:
+                data_dict[field] = np.concatenate((-1*data_dict[field],data_dict[field][~overlap]))
+            else:
+                data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))
+        initial_mesh+=initial_mesh_ref_x
 
-    mb = SpatialData(data_sets,metadata,index,time,load)
+    if y_symm:
+        #Reflect mesh
+        initial_mesh_ref_y = initial_mesh.reflect((0,1,0),point=(0,0,0))
+        
+        # Find overlapping points
+        overlap= initial_mesh.points[:,1]==initial_mesh_ref_y.points[:,1]
+
+        for field in data_dict:
+            if field == 'disp_y' or '_xy' in field:
+                # for some reason, it's combining the meshes odd, so need to flip first set of y's not second
+                data_dict[field] = np.concatenate((-1*data_dict[field],data_dict[field][~overlap]))
+            else:
+                data_dict[field] = np.concatenate((data_dict[field],data_dict[field][~overlap]))
+        initial_mesh+=initial_mesh_ref_y
+        #plt.plot(data_dict['disp_y'])
+
+    dummy = np.zeros_like(data_dict['disp_y'])
+    if dim3:
+        displacement = np.stack((data_dict['disp_x'],data_dict['disp_y'],data_dict['disp_z']),axis=1)
+    else:
+        displacement = np.stack((data_dict['disp_x'],data_dict['disp_y'],dummy),axis=1)
+    
+
+    #Begin assigning data fields
+    data_fields = {'displacement'  :vector_field(displacement)} 
+
+    #Assuming symmetric strain tensor
+    tensor_components = ['xx','xy','xz','xy','yy','yz','xz','yz','zz']
+    
+    # Get the stress and strain components in the file
+    # Could be elastic, plastic, mechanical, stress or cauchy stress
+
+    stresses = []
+    strains = []
+    for key in simdata.node_vars.keys():
+        if 'stress_' in key:
+            stresses.append(key[:-3])
+        if 'strain_' in key:
+            strains.append(key[:-3])
+    stress_fields = np.unique(np.array(stresses))
+    strain_fields = np.unique(np.array(strains))
+    all_fields = np.concatenate((stress_fields,strain_fields))
+    
+    #Iterate over fields and add into the data_fields dict
+
+    for a_field in all_fields:
+        stack = []
+        for comp in tensor_components:
+            if any(a_field+'_'+comp in s for s in simdata.node_vars.keys()):
+                stack.append(data_dict[a_field+'_'+comp])
+            else:
+                stack.append(dummy)
+        data_fields[a_field] = rank_two_field(np.stack(stack,axis=1))
+
+    
+    mb = SpatialData(initial_mesh,data_fields,metadata,index,time,load)
 
     return mb
 # %%
