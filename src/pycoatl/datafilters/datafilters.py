@@ -5,6 +5,7 @@ import numpy as np
 from numpy._typing import NDArray
 from typing import Sequence
 from pathlib import Path
+import multiprocessing as mp
 
 from pycoatl.spatialdata.spatialdata import SpatialData
 from pycoatl.spatialdata.importsimdata import simdata_to_spatialdata
@@ -33,18 +34,19 @@ class DataFilterBase(ABC):
     """
 
     @abstractmethod
-    def run_filter(self,data : SpatialData)-> SpatialData:
+    def run_filter(self,data_list : Sequence[SpatialData])-> Sequence[SpatialData]:
         pass
 
 
 class FastFilterRegularGrid(DataFilterBase):
     
-    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'euler', exclude_limit = 30):
+    def __init__(self,grid_spacing=0.2,window_size=5,strain_tensor = 'euler', exclude_limit = 30, run_mode ='sequential'):
         
         self._grid_spacing = grid_spacing
         self._window_size = window_size
         self._strain_tensor = strain_tensor
         self._exclude_limit = exclude_limit
+        self._run_mode = run_mode
 
         self.available_tensors = {'log-euler-almansi':FastFilterRegularGrid.euler_almansi}
     
@@ -196,6 +198,18 @@ class FastFilterRegularGrid(DataFilterBase):
 
     @staticmethod
     def windowed_strain_calculation(grid_mesh,u_int,v_int,window_size):
+        """ Calculate the deformation gradients based on a strain window of 
+        window_size 
+
+        Args:
+            grid_mesh (_type_): _description_
+            u_int (_type_): _description_
+            v_int (_type_): _description_
+            window_size (_type_): _description_
+
+        Returns:
+            _type_: _description_
+        """
     
         # Create an array of neighbour indices.
         time_steps = v_int.shape[2]
@@ -224,7 +238,15 @@ class FastFilterRegularGrid(DataFilterBase):
 
         return dudx,-dudy,dvdx,-dvdy
     
-    def run_filter(self,data : SpatialData)-> SpatialData:
+    def run_filter_once(self,data : SpatialData)-> SpatialData:
+        """Run the filter on one SpatialData instance
+
+        Args:
+            data (SpatialData): SpatialData instance to be filtered.
+
+        Returns:
+            SpatialData: Data with filter applied
+        """
        
         # Interpolate the data to the new grid       
         grid_mesh,u_int,v_int = FastFilterRegularGrid.interpolate_to_grid(data,self._grid_spacing,self._exclude_limit)
@@ -256,6 +278,38 @@ class FastFilterRegularGrid(DataFilterBase):
         new_metadata['transformations'] = {'filter' : 'fast','spacing' : self._grid_spacing, 'window_size': self._window_size, 'order' : 'Q4'}
         mb = SpatialData(grid_mesh,data_fields,new_metadata,data.index,data.time,data.load)
         return mb
+    
+    def run_filter(self, data_list: Sequence[SpatialData]) -> Sequence[SpatialData]:
+        """Run the filter over a list of spatial data.
+        Defaults to running sequentially, but can also be told to run parallel.
+        Args:
+            data_list (Sequence[SpatialData]): List of SpatialData to be filtered.
+    
+        Returns:
+            Sequence[SpatialData]: List of filtered spatial data.
+        """
+        
+        if self._run_mode == 'sequential':
+            # Run the filters sequentially, intended for sensitivity runs
+            filtered_data_list = []
+            for data in data_list:
+                filtered_data_list.append(self.run_filter_once(data))
+
+        elif self._run_mode == 'parallel':
+            # Run the filters in parallel, intended for non-sensitivity runs
+            n_threads = mp.cpu_count() - 1#len(spatial_data_list)
+
+            with mp.Pool(n_threads) as pool:
+                processes = []
+                for data in data_list:
+                    processes.append(pool.apply_async(self.run_filter_once, (data,))) # tuple is important, otherwise it unpacks strings for some reason
+                f_list=[pp.get() for pp in processes]
+            filtered_data_list = f_list
+        
+        else: 
+            raise ValueError('Run mode must be "sequential" or "parallel".')
+
+        return filtered_data_list
     
 
 @dataclass
