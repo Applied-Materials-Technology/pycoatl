@@ -711,9 +711,9 @@ all_sim_data = exodus_reader.read_all_sim_data()
 #test = return_mesh_simdata(all_sim_data,dim3=False)
 cur_m2= simdata_to_spatialdata(all_sim_data)
 
+#%%
+#v2 development
 
-# %%
-cur_m1.plot()
-# %%
-cur_m1.mesh_data == cur_m2.mesh_data
-# %%
+
+
+

@@ -236,7 +236,7 @@ class FastFilterRegularGrid(DataFilterBase):
             dudx[point,:],dudy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,u,window_size)
             dvdx[point,:],dvdy[point,:] = FastFilterRegularGrid.evaluate_point_dev(point_data,v,window_size)
 
-        return dudx,-dudy,dvdx,-dvdy
+        return dudx,dudy,dvdx,dvdy
     
     def run_filter_once(self,data : SpatialData)-> SpatialData:
         """Run the filter on one SpatialData instance
