@@ -145,3 +145,6 @@ dmypy.json
 examples/ImDef/deformed_images
 examples/ImDef/results
 
+examples/ImDef/.dice/fm_initializer_0.png
+examples/ImDef/subsets_roi.txt
+examples/ImDef/.dice/fm_initializer_0.png

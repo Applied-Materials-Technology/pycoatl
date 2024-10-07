@@ -25,8 +25,8 @@ def simdata_dice_to_spatialdata(simdata : simdata,image_scale: float,centre_loca
     # Create metadata table
     metadata = {'data_source':'SimData DICe Exodus'}
 
-    xc = simdata.node_vars['COORDINATE_X'][:,0]*image_scale-centre_location[0]
-    yc = -simdata.node_vars['COORDINATE_Y'][:,0]*image_scale-centre_location[1]
+    xc = (simdata.node_vars['COORDINATE_X'][:,0]-np.min(simdata.node_vars['COORDINATE_X'][:,0]))*image_scale-centre_location[0]
+    yc = (-simdata.node_vars['COORDINATE_Y'][:,0]-np.min(simdata.node_vars['COORDINATE_Y'][:,0]))*image_scale-centre_location[1]
     zc = np.zeros(len(xc))
     points = np.vstack((xc,yc,zc))
     print(points.shape)
