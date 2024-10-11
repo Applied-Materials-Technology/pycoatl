@@ -29,6 +29,7 @@ best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/Run/sim-wo
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/XY_Specimen/xy_creep_perz_dbl_elastic_out.e'
 #best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
 best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/creep_x_sinh_spline_dmg_nl_out.e'
 
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()

@@ -29,6 +29,8 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 import subprocess
 import time
+import os
+import shutil
 
 from pycoatl.datafilters.datafilters import DiceFilter
 #%%
@@ -40,7 +42,7 @@ best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_p
 #best_file = '/home/rspencer/pycoatl/data/moose-sim-1_out.e'
 #best_file = '/home/rspencer/pyfemop/examples/sim-workdir-1/sim_b-1_out.e'
 best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh/Run/sim-workdir-1/moose-1_out.e'
-
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/creep_x_sinh_spline_dmg_nl_out.e'
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 #test = return_mesh_simdata(all_sim_data,dim3=False)
@@ -96,7 +98,7 @@ id_opts.calc_res_from_fe = False
 id_opts.calc_res_border_px = 100
 
 # Set this to true to create an undeformed masked image
-id_opts.add_static_ref = 'pad_disp'
+id_opts.add_static_ref = False
 
 print('-'*80)
 print('ImageDefOpts:')
@@ -279,10 +281,11 @@ input_file_name = Path('/home/rspencer/pycoatl/examples/ImDef/input.xml')
 mod_file_name = input_file_name.parent /'input_mod.xml'
 deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
 subset_file =  input_file_name.parent /'subsets_roi.txt'
+param_file = Path('/home/rspencer/pycoatl/examples/ImDef/params.xml')
 output_folder = input_file_name.parent /'results'
 #cor_param_file = Path('params.xml')
 #image_folder = deformed_images.parent
-
+#%%
 # Read current input file 
 tree = ET.parse(input_file_name)
 root = tree.getroot()
@@ -353,6 +356,9 @@ class DiceOpts:
 
     # Subset file
     subset_file: Path 
+
+    # Params file
+    param_file: Path
     
     # Output file
     output_folder: Path
@@ -389,8 +395,9 @@ class DiceManager:
 
         # Read in deformed image paths, assumption is 0 is the reference
         files = []
-        for p in deformed_images.iterdir():
-            files.append(p.name)
+        for p in self.dice_opts.deformed_images.iterdir():
+            if p.match('defimage*'):
+                files.append(p.name)
 
         files.sort()
 
@@ -411,10 +418,25 @@ class DiceManager:
         # Write modified XML to file
         tree.write(self.dice_opts.mod_file_name)
 
+    def update_param_file(self)->None:
+        """Update the parameters file
+        For now just copies
+        """
+
+        # Read current input file 
+        tree = ET.parse(self.dice_opts.param_file)
+        
+
+        # Write modified XML to file
+        tree.write(self.dice_opts.mod_file_name.parent/'params.xml')
+
+
     def write_subsets_file(self,x_roi:NDArray[int],y_roi:NDArray[int])->None:
         """Writes the subsets.txt file using the polygon defined by 
         x_roi, y_roi. These should be defined such that they form a 
         path around the ROI. 
+        Also now adds in a seed in the cente of mass of the object.
+        May need to change if using holes.
 
         Args:
             x_roi (NDArray[np.int]): X pixel locations
@@ -434,6 +456,10 @@ class DiceManager:
             f.write('      END VERTICES\n')
             f.write('    END POLYGON\n')
             f.write('  END BOUNDARY\n')
+            #f.write('  BEGIN SEED\n')
+            #f.write('      LOCATION {} {}\n'.format(np.mean(x_roi),np.mean(y_roi)))
+            #f.write('      DISPLACEMENT 10 10\n')
+            #f.write('  END SEED\n')
             f.write('END REGION_OF_INTEREST\n')
 
     def run(self)->Path:
@@ -456,6 +482,7 @@ dice_opts= DiceOpts(input_file_name,
                     mod_file_name,
                     deformed_images,
                     subset_file,
+                    param_file,
                     output_folder)
 dm = DiceManager(dice_opts)
 
@@ -469,7 +496,7 @@ dm.run()
 # Option to save imasge mask and reuse
 # Option to add noise to images
 # Image deformation settings
-base_image = Path('/home/rspencer/projects/pyvale/data/speckleimages/OptimisedSpeckle_2464_2056_width5.0_8bit_GBlur1.tiff')
+base_image = Path('/home/rspencer/pycoatl/examples/optspeckle_2464x2056px_spec5px_8bit_gblur1px.tiff')
 fe_data = cur_best # Data to use
 image_def_opts = id_opts # Im def options
 camera_opts = camera # Camera options
@@ -481,11 +508,13 @@ mod_file_name = input_file_name.parent /'input_mod.xml'
 deformed_images = Path('/home/rspencer/pycoatl/examples/ImDef/deformed_images')
 subset_file =  input_file_name.parent /'subsets_roi.txt'
 output_folder = input_file_name.parent /'results'
+param_file = Path('/home/rspencer/pycoatl/examples/ImDef/params.xml')
 
 dice_opts= DiceOpts(input_file_name,
                     mod_file_name,
                     deformed_images,
                     subset_file,
+                    param_file,
                     output_folder)
 dm = DiceManager(dice_opts)
 
@@ -551,6 +580,15 @@ class DiceFilter(DataFilterBase):
         # Check if the image mask already exists
 
         coords = np.array(fedata.mesh_data.points)
+        #Flip Y axis
+        coords[:,1]= -coords[:,1]
+        # Default ROI is the whole FOV but we want to set this to be based on the
+        # furthest nodes, this is set in FE units 'meters' and does not change FOV
+        self.camera_opts.roi_len = sid.calc_roi_from_nodes(self.camera_opts,coords)[0]
+
+        self.camera_opts._roi_loc[0] = (self.camera_opts._fov[0] - self.camera_opts._roi_len[0])/2 -np.min(coords[:,0])
+        self.camera_opts._roi_loc[1] = (self.camera_opts._fov[1] - self.camera_opts._roi_len[1])/2 -np.min(coords[:,1])
+       
         disp_x = fedata.data_fields['displacement'].data[:,0,time_steps]
         disp_y = fedata.data_fields['displacement'].data[:,1,time_steps]
 
@@ -597,7 +635,88 @@ class DiceFilter(DataFilterBase):
                                         print_on = True)
                 
         return coords, disp_x, disp_y
-                
+    
+    def run_deformation(self,batch: Sequence[SpatialData],save_folder: Path)->Sequence[Path]:
+        """ Run deformation process for all SpatialData in the batch.
+
+        Args:
+            batch (Sequence[SpatialData]): _description_
+            save_folder (Path): _description_
+
+        Returns:
+            Sequence[Path]: _description_
+        """
+
+        #clear previous data
+        all_dirs = os.listdir(save_folder)
+        for dd in all_dirs:
+            if os.path.isdir(save_folder / dd):
+                shutil.rmtree(save_folder / dd)
+
+        #n_batch = len(batch)
+        # Iterate over the SpatialData in the batch, deform all the images.
+        # Assumption is that all in the batch share a geometry, so will only
+        # have to do masking operation once.
+        save_paths = []
+        for i,fedata in enumerate(batch):
+            
+            #Create save folder
+            save_path = save_folder / 'imdef_{}'.format(i)
+            if not save_path.is_dir():
+                save_path.mkdir()
+            save_paths.append(save_path)
+
+            coords, disp_x, disp_y = self.preprocess_images(fedata,self.time_steps)
+        
+            print_on = True
+            if print_on:
+                print('\n'+'='*80)
+                print('DEFORMING IMAGES')
+
+            num_frames = disp_x.shape[1]
+            ticl = time.perf_counter()
+
+            for ff in range(num_frames):
+                if print_on:
+                    ticf = time.perf_counter()
+                    print(f'\nDEFORMING FRAME: {ff}')
+
+                (def_image,_,_,_,_) = sid.deform_one_image(self.upsampled_image,
+                                                    self.camera_opts,
+                                                    self.image_def_opts,
+                                                    coords, # type: ignore
+                                                    np.array((disp_x[:,ff],disp_y[:,ff])).T,
+                                                    image_mask=self.image_mask,
+                                                    print_on=print_on)
+
+                save_file = save_path / str(f'{id_opts.save_tag}_'+
+                        f'{sid.get_image_num_str(im_num=ff,width=4)}'+
+                        '.tiff')
+                sid.save_image(save_file,def_image,camera.bits)
+
+                if print_on:
+                    tocf = time.perf_counter()
+                    print(f'DEFORMING FRAME: {ff} took {tocf-ticf:.4f} seconds')
+        return save_paths
+
+    def run_dice(self,save_paths: Sequence[Path]):
+
+        x_roi, y_roi = self.create_roi_polygon(self.image_mask,step_size=self.step_size)
+        
+        for save_path in save_paths:
+
+            self.dice_manager.dice_opts.deformed_images = save_path
+            self.dice_manager.dice_opts.mod_file_name = save_path / 'input_mod.xml'
+            self.dice_manager.dice_opts.subset_file = save_path / 'subsets_roi.txt'
+            self.dice_manager.dice_opts.output_folder = save_path / 'results'
+
+            self.dice_manager.update_input_file()
+            self.dice_manager.update_param_file()
+            self.dice_manager.write_subsets_file(x_roi,y_roi)
+            self.dice_manager.run()
+
+
+
     def run_filter(self,fedata: SpatialData):
 
         # Do some image deformation
@@ -649,10 +768,12 @@ class DiceFilter(DataFilterBase):
 
 #%%
 
-tf= DiceFilter(base_image,id_opts,camera,dice_opts,[50,150,200])
+tf= DiceFilter(base_image,id_opts,camera,dice_opts,[0,5,-1])
 #%%
 #tf.preprocess_images(cur_best)
-tf.run_filter(fe_data)
+#tf.run_filter(fe_data)
+dm.dice_opts.mod_file_name = Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef/imdef_0/input_mod.xml')
+dm.update_param_file()
 #%%
 # Step 1: Read a default XML file to get some information
 # Need the step size to apply to ROI size.
@@ -727,7 +848,40 @@ for rr in run_dirs:
     if not rr.is_dir():
         rr.mkdir()
 
+#%% Test deformation
+tf= DiceFilter(base_image,id_opts,camera,dice_opts,[0,-1])
 #%%
+tf.run_deformation([cur_best,cur_best],Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef'))
+
+#%%
+#tf.run_dice([Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef/imdef_0'),
+#             Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef/imdef_1')])
+tf.run_dice([Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef/imdef_0')])
+
+
+
+# %%
+save_folder = Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef')
+all_dirs = os.listdir(save_folder)
+for dd in all_dirs:
+    if os.path.isdir(save_folder / dd):
+        shutil.rmtree(save_folder / dd)
+# %%
+x_roi, y_roi = tf.create_roi_polygon(tf.image_mask,step_size=tf.step_size)
+        
+# %%
+exodus_reader = ExodusReader(Path('/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/imdef/imdef_0/results/DICe_solution.e'))
+all_sim_data = exodus_reader.read_all_sim_data()
+#t = simdata_dice_to_spatialdata(all_sim_data,camera.m_per_px,-camera.roi_loc)
+t = simdata_dice_to_spatialdata(all_sim_data,0.0175,[7.5,-20])
+
+# %%
+t.plot('vsg_strain',[1,1])
+# %%
+t.plot()
+# %%
+c = all_sim_data.coords
+plt.scatter(c[:,0],c[:,1],c=all_sim_data.node_vars['VSG_STRAIN_YY'])
 
 
 # %%

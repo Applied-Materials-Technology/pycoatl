@@ -7,7 +7,7 @@
   <Parameter name="enable_shear_strain" type="bool" value="true" />
   <Parameter name="output_delimiter" type="string" value="," />
   <ParameterList name="post_process_vsg_strain">
-    <Parameter name="strain_window_size_in_pixels" type="int" value="30"/>
+    <Parameter name="strain_window_size_in_pixels" type="int" value="100"/>
   </ParameterList>
   <ParameterList name="output_spec">
     <Parameter name="COORDINATE_X" type="bool" value="true" />
