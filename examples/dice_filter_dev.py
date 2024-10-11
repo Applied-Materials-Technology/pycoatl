@@ -714,6 +714,20 @@ cur_m2= simdata_to_spatialdata(all_sim_data)
 #%%
 #v2 development
 
+#Folder spawning
+
+base_dir = Path('/home/rspencer/moose_work/Dummy')
+n_dirs = 3
+
+run_dirs = list([])
+for nn in range(n_dirs): # type: ignore
+    run_dirs.append(base_dir / ('imdef-' + str(nn+1)))
+
+for rr in run_dirs:
+    if not rr.is_dir():
+        rr.mkdir()
+
+#%%
 
 
-
+# %%

@@ -181,10 +181,15 @@ class FastFilterRegularGrid(DataFilterBase):
         #window_spread = int((window_size - 1) /2)
         
         xdata = point_data[:,:2].T
-        xbasis = FastFilterRegularGrid.L_Q4(xdata)
+        # remove Nans
         ydata = data
+        msk = ~np.isnan(ydata[:,0])
+        xbasis = FastFilterRegularGrid.L_Q4(xdata[:,msk])
+        ydata = ydata[msk,:]
+        #xbasis = FastFilterRegularGrid.L_Q4(xdata)
+        
 
-        if len(ydata)<np.power(window_size-2,2):#window_size**2:
+        if len(ydata)<0:#np.power(window_size/6,2):#window_size**2:
             partial_dx = np.nan
             partial_dy = np.nan
         else:
@@ -259,8 +264,20 @@ class FastFilterRegularGrid(DataFilterBase):
         time_steps = u_int.shape[2]
         u_r = np.reshape(u_int,(-1,time_steps))
         v_r = np.reshape(v_int,(-1,time_steps))
-        dummy = np.zeros_like(u_r)
-        displacement = np.stack((u_r,v_r,dummy),axis=1)
+
+        x = grid_mesh.points[:,0]
+        y = grid_mesh.points[:,1]
+        z = grid_mesh.points[:,2]
+
+        filt = ~np.isnan(v_r[:,0])
+        points = np.vstack((x[np.ravel(filt)],y[np.ravel(filt)],z[np.ravel(filt)])).T
+        grid_points = pv.PolyData(points)
+
+        u_r_filt = u_r[filt]
+        v_r_filt = v_r[filt]
+
+        dummy = np.zeros_like(u_r_filt)
+        displacement = np.stack((u_r_filt,v_r_filt,dummy),axis=1)
         data_fields = {'displacement'  :vector_field(displacement)} 
 
 
@@ -271,12 +288,18 @@ class FastFilterRegularGrid(DataFilterBase):
             exx,eyy,exy = FastFilterRegularGrid.small_strain(dudx,dudy,dvdx,dvdy)
         elif self._strain_tensor == 'hencky':
             exx,eyy,exy = FastFilterRegularGrid.hencky(dudx,dudy,dvdx,dvdy)
-            
-        strains =np.stack((exx,exy/2,dummy,exy/2,eyy,dummy,dummy,dummy,dummy),axis=1)
+
+        exx_filt = exx[filt]
+        exy_filt = exy[filt]
+        eyy_filt = eyy[filt]
+
+        strains =np.stack((exx_filt,exy_filt/2,dummy,exy_filt/2,eyy_filt,dummy,dummy,dummy,dummy),axis=1)
         data_fields['filtered_strain'] = rank_two_field(strains)
         new_metadata = data.metadata
         new_metadata['transformations'] = {'filter' : 'fast','spacing' : self._grid_spacing, 'window_size': self._window_size, 'order' : 'Q4'}
-        mb = SpatialData(grid_mesh,data_fields,new_metadata,data.index,data.time,data.load)
+        #Filter out nans
+        
+        mb = SpatialData(grid_points,data_fields,new_metadata,data.index,data.time,data.load)
         return mb
     
     def run_filter(self, data_list: Sequence[SpatialData]) -> Sequence[SpatialData]:

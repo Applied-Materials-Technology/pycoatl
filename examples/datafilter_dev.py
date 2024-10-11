@@ -29,7 +29,7 @@ dic_data = matchid_to_spatialdata(Path('/home/rspencer/moose_work/Viscoplastic_C
 #%%
 
 best_file = '/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3p_creep_peric_sat_3d_out.e'
-
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/creep_x_sinh_spline_dmg_nl_out.e'
 exodus_reader = ExodusReader(Path(best_file))
 all_sim_data = exodus_reader.read_all_sim_data()
 #test2 = return_mesh_simdata(all_sim_data,dim3=False)
@@ -184,6 +184,8 @@ def window_differentation(data,window_size=5):
         data.metadata['dic_filter'] = True
         data.metadata['window_size'] = window_size
 
+#%%
+
 
 
 # %%
@@ -324,7 +326,7 @@ result.plot(scalars='v_int')
 # Step 1 - Interpolate
 # Want to return arrays and a mesh
 
-def interpolate_to_grid(fe_data : SpatialData,spacing : float):
+def interpolate_to_grid(fe_data : SpatialData,spacing : float, exclude_limit):
     """Interpolate the FE data onto a regular grid with spacing.
 
     Args:
@@ -343,7 +345,7 @@ def interpolate_to_grid(fe_data : SpatialData,spacing : float):
     x,y = np.meshgrid(xr,yr,indexing='ij')
     # Add Nans to the array for outline the edges of the specimen
 
-    xp,yp = excluding_mesh(fe_data.mesh_data.points[:,0], fe_data.mesh_data.points[:,1], nx=10, ny=10)
+    xp,yp = excluding_mesh(fe_data.mesh_data.points[:,0], fe_data.mesh_data.points[:,1], exclude_limit, exclude_limit)
     zp = np.nan + np.zeros_like(xp)
     points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0],xp], np.r_[fe_data.mesh_data.points[:,1],yp])))
 
@@ -515,4 +517,36 @@ plt.contourf(u[:,:,-1])
 # %%
 grid_mesh,u_int,v_int = FastFilterRegularGrid.interpolate_to_grid(cur_best,0.2,10)
 plt.contourf(u_int[:,:,-1])
+# %%
+result, u_int, v_int = interpolate_to_grid(cur_best,0.2,30)
+# %%
+x = result.points[:,0]
+y = result.points[:,1]
+z = result.points[:,2]
+
+filt = ~np.isnan(v_int[...,0])
+
+# %%
+
+points = np.vstack((x[np.ravel(filt)],y[np.ravel(filt)],z[np.ravel(filt)])).T
+test = pv.PolyData(points)
+test.plot()
+
+
+# %%
+result.plot()
+# %%
+u_r = np.reshape(u_int,(-1,22))
+test = u_r[np.ravel(filt)]
+test.shape
+
+# %%
+best_file = '/home/rspencer/moose_work/Geometry_Optimisation/sens_opt_sinh_spline/creep_x_sinh_spline_dmg_nl_out.e'
+exodus_reader = ExodusReader(Path(best_file))
+all_sim_data = exodus_reader.read_all_sim_data()
+cur_best= simdata_to_spatialdata(all_sim_data)
+# %%
+data_filter = FastFilterRegularGrid(grid_spacing=0.18,run_mode='sequential',window_size=20)
+test = data_filter.run_filter_once(cur_best)
+test.plot('filtered_strain',[1,1])
 # %%
