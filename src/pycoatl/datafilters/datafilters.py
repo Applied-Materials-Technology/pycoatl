@@ -205,6 +205,10 @@ class FastFilter(DataFilterBase):
                 zv = fe_data.data_fields['displacement'].data[:,1,i]
                 u_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu])(x,y)
                 v_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv])(x,y)
+        
+        #replace nan's with 0
+        u_int[np.isnan(u_int)] =0
+        v_int[np.isnan(v_int)] =0
  
         return dic_data_mesh, u_int, v_int
     
