@@ -18,7 +18,7 @@ from pycoatl.spatialdata.tensorfield import vector_field
 from scipy.spatial import cKDTree as KDTree
 from scipy.spatial import Delaunay
 from scipy import interpolate
-from pycoatl.datafilters.datafilters import FastFilterRegularGrid
+from pycoatl.datafilters.datafilters import FastFilter
 #%%
 dic_data = matchid_to_spatialdata(Path('/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3P2/Exp'),
                                   Path('/home/rspencer/moose_work/Viscoplastic_Creep/3P_Specimen/3P2/Image_Avg_20.csv'),
@@ -549,4 +549,104 @@ cur_best= simdata_to_spatialdata(all_sim_data)
 data_filter = FastFilterRegularGrid(grid_spacing=0.18,run_mode='sequential',window_size=20)
 test = data_filter.run_filter_once(cur_best)
 test.plot('filtered_strain',[1,1])
+# %%
+curp = Path('/home/rspencer/moose_work/HT_Creep/creep_xy_3d_dmg_nl_out.e')
+exodus_reader = ExodusReader(Path(curp))
+all_sim_data = exodus_reader.read_all_sim_data()
+input_data= simdata_to_spatialdata(all_sim_data)
+input_data.get_equivalent_strain('mechanical_strain')
+
+
+#%%
+
+def interpolate_to_grid(fe_data : SpatialData, dic_data_mesh: pv.UnstructuredGrid, exclude_limit: float):
+        """Interpolate the FE data onto a regular grid with spacing.
+
+        Args:
+            fe_data (SpatialData): FE Data.
+            spacing (float): Spacing for the regular grid on which the data will be interpolated
+
+        Returns:
+            _type_: _description_
+        """
+
+        x= dic_data_mesh.points[:,0]
+        y= dic_data_mesh.points[:,1]
+        # Add Nans to the array for outline the edges of the specimen
+        
+        if exclude_limit >0:
+            xp,yp = FastFilterRegularGrid.excluding_mesh(fe_data.mesh_data.points[:,0], fe_data.mesh_data.points[:,1], nx=exclude_limit, ny=exclude_limit)
+            zp = np.nan + np.zeros_like(xp)
+            points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0],xp], np.r_[fe_data.mesh_data.points[:,1],yp])))
+        
+            tri = Delaunay(points)
+            u_int = np.empty((len(x),fe_data.n_steps))
+            v_int = np.empty((len(x),fe_data.n_steps))
+            for i in range(fe_data.n_steps):
+                zu = fe_data.data_fields['displacement'].data[:,0,i]
+                zv = fe_data.data_fields['displacement'].data[:,1,i]
+                u_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu,zp])(x,y)
+                v_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv,zp])(x,y)
+        
+        else: # Don't use excluding mesh approach
+            points = np.transpose(np.vstack((np.r_[fe_data.mesh_data.points[:,0]], np.r_[fe_data.mesh_data.points[:,1]])))
+        
+            tri = Delaunay(points)
+            u_int = np.empty((len(x),fe_data.n_steps))
+            v_int = np.empty((len(x),fe_data.n_steps))
+            for i in range(fe_data.n_steps):
+                zu = fe_data.data_fields['displacement'].data[:,0,i]
+                zv = fe_data.data_fields['displacement'].data[:,1,i]
+                u_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zu])(x,y)
+                v_int[:,i] = interpolate.LinearNDInterpolator(tri,np.r_[zv])(x,y)
+ 
+
+        # Create pyvista mesh 
+        #x,y,z = np.meshgrid(xr,yr,zr)
+        #grid = pv.StructuredGrid(x,y,z)
+        #result = grid.sample(fe_data.mesh_data)
+        return dic_data_mesh, u_int, v_int
+
+#%%
+
+dic_data_xy1 = matchid_to_spatialdata(Path('/home/rspencer/data/creep/xy1/Exp_Spec_Alt'),
+                                  Path('/home/rspencer/data/creep/xy1/Image_Avg_10.csv'),
+                                  version='2024.1',loadfile_format='Image.csv')
+r_mat = np.array([[0,1,0,-0.09839],[1,0,0,0.43],[0,0,1,1.006439],[0,0,0,1]])
+r_mat = np.array([[0,1,0,-0.09839],[1,0,0,0.43],[0,0,1,1.006439],[0,0,0,1]])
+dic_data_xy1.rotate_data(r_mat)
+
+# %%
+a,u_int,v_int = interpolate_to_grid(input_data,dic_data_xy1.mesh_data,0)
+# %%
+dic_data_xy1.mesh_data.plot(scalars=vint[:,-1])
+# %%
+data_filter = FastFilter(grid_spacing=0.2,run_mode='sequential',window_size=5)
+test = data_filter.run_filter_once(input_data)
+test.plot('filtered_strain',[1,1])
+#%%
+data_filter = FastFilter(grid_spacing=0.1,run_mode='sequential',window_size=20,mesh_data=dic_data_xy1.mesh_data)
+test = data_filter.run_filter_once(input_data)
+test.plot('filtered_strain',[1,1])
+# %%
+#ind_data = np.reshape(np.arange(v_int[:,:,0].size),(v_int.shape[0],v_int.shape[1]))
+window_size = 5
+ind_data = np.arange(v_int.shape[0])
+ind_list = []
+levels = int((window_size -1)/2)
+x= dic_data_xy1.mesh_data.points[:,0]
+y= dic_data_xy1.mesh_data.points[:,1]
+x_spacing = np.max(np.diff(np.unique(x)))
+y_spacing = np.max(np.diff(np.unique(y)))
+delta = x_spacing/50
+for i in range(len(ind_data)):
+    a = x>x[i]-(levels*(delta+x_spacing))
+    b = x<x[i]+(levels*(delta+x_spacing))
+    c = y>y[i]-(levels*(delta+y_spacing))
+    d = y<y[i]+(levels*(delta+y_spacing))
+    ind_list.append(ind_data[a*b*c*d])
+
+# %%
+t = 60
+plt.plot(x[ind_list[t]],y[ind_list[t]],'.')
 # %%

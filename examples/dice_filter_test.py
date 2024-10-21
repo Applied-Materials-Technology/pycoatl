@@ -117,7 +117,7 @@ sba = {'vertical':True,
 plot_mesh= t.get_mesh_component('vsg_strain',[1,1],-1)
 
 pl.add_mesh(plot_mesh,scalar_bar_args=sba,)
-pl.view_xy()
+#pl.view_xy()
 pl.show_bounds(mesh = plot_mesh,
                bounds=[-10,15,-15,15,0,0],
                n_xlabels=6,
